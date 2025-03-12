@@ -14,6 +14,7 @@ function Properties() {
     setIsLoading(true);
     axios.get('http://localhost:3000/api/properties', { params: filters })
       .then(res => {
+        // The response will now include landlord_phone and google_maps_link fields
         setProperties(res.data);
         setIsLoading(false);
       })
@@ -45,4 +46,3 @@ function Properties() {
 }
 
 export default Properties;
-

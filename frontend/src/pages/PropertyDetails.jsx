@@ -69,9 +69,21 @@ function PropertyDetails() {
                 {property.priceStatus === 'overpriced' ? ' 🚩 Overpriced' : ' ✅ Fair Deal'}
               </span>
             </p>
-            <button className="px-4 cursor-pointer py-2 text-sm font-semibold bg-cyan-500 text-white rounded-lg shadow-md hover:bg-cyan-400 transition duration-300">
-              Contact Owner
-            </button>
+            
+            {/* Contact button now uses the phone number if available */}
+            {property.landlord_phone ? (
+              <a 
+                href={`tel:${property.landlord_phone}`}
+                className="px-4 py-2 text-sm font-semibold bg-cyan-500 text-white rounded-lg shadow-md hover:bg-cyan-400 transition duration-300 flex items-center"
+              >
+                <i className="ri-phone-line mr-2"></i>
+                Call Owner
+              </a>
+            ) : (
+              <button className="px-4 cursor-pointer py-2 text-sm font-semibold bg-cyan-500 text-white rounded-lg shadow-md hover:bg-cyan-400 transition duration-300">
+                Contact Owner
+              </button>
+            )}
           </div>
 
           {/* Other Details */}
@@ -82,7 +94,33 @@ function PropertyDetails() {
             <p className="text-gray-300 text-lg">
               <span className="font-semibold text-cyan-400">Preferences:</span> {property.preferences || 'None'}
             </p>
+            
+            {/* New: Phone number display */}
+            {property.landlord_phone && (
+              <p className="text-gray-300 text-lg">
+                <span className="font-semibold text-cyan-400">Phone:</span>{' '}
+                <a href={`tel:${property.landlord_phone}`} className="text-white hover:text-cyan-300 transition">
+                  {property.landlord_phone}
+                </a>
+              </p>
+            )}
           </div>
+          
+          {/* New: Google Maps section */}
+          {property.google_maps_link && (
+            <div className="mt-6">
+              <h3 className="text-xl font-semibold text-cyan-400 mb-3">Location</h3>
+              <a 
+                href={property.google_maps_link} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="flex items-center bg-gray-700 hover:bg-gray-600 text-white py-3 px-4 rounded-lg transition duration-300"
+              >
+                <i className="ri-map-pin-line mr-2 text-xl"></i>
+                View on Google Maps
+              </a>
+            </div>
+          )}
         </div>
       </div>
     </div>

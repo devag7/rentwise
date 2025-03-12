@@ -23,13 +23,13 @@ const authenticate = (req, res, next) => {
 };
 
 router.post('/', authenticate, upload.single('image'), (req, res) => {
-  const { area_id, address, property_type, size, rent, preferences } = req.body;
+  const { area_id, address, property_type, size, rent, preferences, landlord_phone, google_maps_link } = req.body;
   const image_data = req.file ? req.file.buffer : null;
   if (rent < 5000 || rent > 200000) return res.status(400).json({ error: 'Rent must be ₹5k-₹2L' });
 
   db.query(
-    'INSERT INTO properties (landlord_id, area_id, address, property_type, size, rent, preferences, image_data) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    [req.user.userId, area_id, address, property_type, size, rent, preferences, image_data],
+    'INSERT INTO properties (landlord_id, area_id, address, property_type, size, rent, preferences, image_data, landlord_phone, google_maps_link) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [req.user.userId, area_id, address, property_type, size, rent, preferences, image_data, landlord_phone, google_maps_link],
     (err) => {
       if (err) return res.status(500).json({ error: 'Failed to add property' });
       res.status(201).json({ message: 'Property added' });
