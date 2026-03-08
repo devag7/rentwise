@@ -106,7 +106,7 @@ export default function Login() {
 
                     <button
                         type="submit"
-                        className="w-full py-3.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold rounded-xl shadow-[0_0_20px_rgba(6,182,212,0.3)] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group"
+                        className="w-full py-3.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold rounded-xl shadow-[0_0_20px_#06b6d44d] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group"
                         disabled={isLoading}
                     >
                         {isLoading ? (

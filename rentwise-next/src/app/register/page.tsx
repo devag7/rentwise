@@ -108,7 +108,7 @@ export default function Register() {
 
                     <button
                         type="submit"
-                        className="w-full py-3.5 mt-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-[0_0_20px_rgba(147,51,234,0.3)] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group"
+                        className="w-full py-3.5 mt-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-[0_0_20px_#9333ea4d] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group"
                         disabled={isLoading}
                     >
                         {isLoading ? (
