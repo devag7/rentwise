@@ -1,0 +1,33 @@
+name: Deploy to DigitalOcean Droplet
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-name: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Deploy to Droplet via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.DROPLET_IP }}
+          username: root
+          password: ${{ secrets.DROPLET_PASSWORD }}
+          # Alternatively, use SSH key if password auth is disabled:
+          # key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /var/www/rentwise
+            git pull origin main
+            
+            # Rebuild and restart the unified Next.js docker container in the background
+            docker compose down
+            docker compose up -d --build
+            
+            # Clean up old unused images to save space
+            docker image prune -f
