@@ -53,8 +53,8 @@ export default function Login() {
                 router.push('/properties');
             }
 
-        } catch (err: any) {
-            setError('Login failed: ' + (err.message || 'Invalid credentials'));
+        } catch (err: unknown) {
+            setError('Login failed: ' + ((err as Error).message || 'Invalid credentials'));
         } finally {
             setIsLoading(false);
         }
@@ -130,7 +130,7 @@ export default function Login() {
 
                 {/* Register Link */}
                 <p className="text-center text-gray-400 mt-8 text-sm">
-                    Don't have an account?
+                    Don&apos;t have an account?
                     <Link href="/register" className="text-cyan-400 hover:text-cyan-300 hover:underline ml-1 font-medium transition-colors">
                         Create one now
                     </Link>

@@ -80,7 +80,7 @@ export default function Properties() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <h3 className="text-xl font-bold text-gray-700 dark:text-gray-300">No properties found</h3>
-                        <p className="text-gray-500 mt-2">Try adjusting your filters to find what you're looking for.</p>
+                        <p className="text-gray-500 mt-2">Try adjusting your filters to find what you&apos;re looking for.</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 mt-6 w-full">

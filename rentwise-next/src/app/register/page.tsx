@@ -23,7 +23,7 @@ export default function Register() {
 
         try {
             // Create user via Supabase Auth with custom user_metadata for role and username
-            const { data, error: signUpError } = await supabase.auth.signUp({
+            const { error: signUpError } = await supabase.auth.signUp({
                 email,
                 password,
                 options: {
@@ -38,8 +38,8 @@ export default function Register() {
 
             alert('✅ Registration Successful! You can now log in.');
             router.push('/login');
-        } catch (err: any) {
-            setError('❌ Registration Failed: ' + (err.message || 'Something went wrong'));
+        } catch (err: unknown) {
+            setError('❌ Registration Failed: ' + ((err as Error).message || 'Something went wrong'));
         } finally {
             setIsLoading(false);
         }
