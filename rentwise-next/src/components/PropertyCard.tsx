@@ -1,4 +1,7 @@
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { createClient } from '@/utils/supabase/client';
+import toast from 'react-hot-toast';
 
 export interface Property {
     property_id: number;
@@ -8,6 +11,9 @@ export interface Property {
     rent: number;
     size: number;
     image_data?: string;
+    bathrooms?: number;
+    parking?: boolean;
+    furnishing_status?: string;
 }
 
 // Pseudo AI Algorithm: Predicts a fair price based on the area's base rate and flat size.
@@ -30,6 +36,62 @@ const calculateAIPrediction = (area_name: string, size: number, type: string) =>
 };
 
 export default function PropertyCard({ property }: { property: Property }) {
+    const supabase = createClient();
+    const [isSaved, setIsSaved] = useState(false);
+    const [userId, setUserId] = useState<string | null>(null);
+
+    useEffect(() => {
+        const checkSavedStatus = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user?.id) {
+                setUserId(session.user.id);
+                // Only tenants can save properties
+                if (session.user.user_metadata?.role !== 'tenant') return;
+
+                const { data } = await supabase
+                    .from('favorites')
+                    .select('id')
+                    .eq('user_id', session.user.id)
+                    .eq('property_id', property.property_id)
+                    .single();
+
+                if (data) setIsSaved(true);
+            }
+        };
+        checkSavedStatus();
+    }, [property.property_id, supabase]);
+
+    const handleToggleSave = async (e: React.MouseEvent) => {
+        e.preventDefault(); // prevent navigation if wrapped in link later
+        if (!userId) {
+            toast.error("Please login as a Tenant to save properties.");
+            return;
+        }
+
+        if (isSaved) {
+            const { error } = await supabase
+                .from('favorites')
+                .delete()
+                .eq('user_id', userId)
+                .eq('property_id', property.property_id);
+            if (!error) {
+                setIsSaved(false);
+                toast.success("Removed from favorites.");
+            } else {
+                toast.error("Failed to remove.");
+            }
+        } else {
+            const { error } = await supabase
+                .from('favorites')
+                .insert({ user_id: userId, property_id: property.property_id });
+            if (!error) {
+                setIsSaved(true);
+                toast.success("Saved to favorites!");
+            } else {
+                toast.error("Could not save property.");
+            }
+        }
+    };
 
     const predictedPrice = calculateAIPrediction(property.area_name, property.size, property.property_type);
     const difference = predictedPrice - property.rent;
@@ -37,7 +99,25 @@ export default function PropertyCard({ property }: { property: Property }) {
     const differencePercent = Math.abs((difference / predictedPrice) * 100).toFixed(0);
 
     return (
-        <div className="group bg-white dark:bg-[#0A0A0A] rounded-none border border-gray-200 dark:border-white/10 overflow-hidden transform transition-all duration-500 hover:border-gray-900 dark:hover:border-white/30 flex flex-col h-full shadow-sm">
+        <div className="group bg-white dark:bg-[#0A0A0A] rounded-none border border-gray-200 dark:border-white/10 overflow-hidden transform transition-all duration-500 hover:border-gray-900 dark:hover:border-white/30 flex flex-col h-full shadow-sm relative">
+
+            {/* Save Button */}
+            <button
+                onClick={handleToggleSave}
+                className="absolute top-4 right-4 z-20 p-2 bg-black/50 backdrop-blur-md rounded-full border border-white/20 hover:bg-black/80 transition-all group/btn"
+                aria-label="Save Property"
+            >
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className={`h-5 w-5 transition-colors ${isSaved ? 'text-[#FF385C] fill-[#FF385C]' : 'text-white group-hover/btn:text-[#FF385C]'}`}
+                    fill={isSaved ? "currentColor" : "none"}
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+            </button>
+
             <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100 dark:bg-[#111]">
                 {property.image_data ? (
                     <img
@@ -62,10 +142,10 @@ export default function PropertyCard({ property }: { property: Property }) {
                 </div>
 
                 {/* AI Deal Badge */}
-                <div className="absolute top-4 right-4 z-10 flex flex-col items-end">
+                <div className="absolute bottom-4 left-4 z-10 flex flex-col items-start">
                     <div className={`px-2 py-1 flex items-center shadow-lg border backdrop-blur-md text-[10px] font-bold tracking-widest uppercase ${isGoodDeal
-                            ? 'bg-[#00A699]/90 text-white border-[#00A699]'
-                            : 'bg-[#FF385C]/90 text-white border-[#FF385C]'
+                        ? 'bg-[#00A699]/90 text-white border-[#00A699]'
+                        : 'bg-[#FF385C]/90 text-white border-[#FF385C]'
                         }`}>
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />

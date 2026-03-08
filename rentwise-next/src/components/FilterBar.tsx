@@ -7,6 +7,9 @@ export interface FilterState {
     property_type: string;
     min_rent: string;
     max_rent: string;
+    furnishing_status: string;
+    parking: boolean;
+    sort_by: string;
 }
 
 interface FilterBarProps {
@@ -19,18 +22,24 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
         property_type: "",
         min_rent: "",
         max_rent: "",
+        furnishing_status: "",
+        parking: false,
+        sort_by: "newest",
     });
 
     const handleChange = (e: ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
-        const { name, value } = e.target;
-        const newFilters = { ...filters, [name]: value };
+        const { name, value, type } = e.target;
+        const newFilters = {
+            ...filters,
+            [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
+        };
         setFilters(newFilters);
         onFilterChange(newFilters);
     };
 
     return (
         <div className="bg-[#0A0A0A] border-y border-white/5 py-8 mb-12">
-            <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-6 items-end">
                 {/* Area Selection */}
                 <div className="relative">
                     <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 block">Location</span>
@@ -38,19 +47,19 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
                         name="area_id"
                         value={filters.area_id}
                         onChange={handleChange}
-                        className="w-full bg-transparent text-white border-b border-gray-800 pb-2 focus:outline-none focus:border-white transition-colors duration-300 text-sm font-medium"
+                        className="w-full bg-transparent text-white border-b border-gray-800 pb-2 focus:outline-none focus:border-[#00A699] transition-colors duration-300 text-sm font-medium appearance-none cursor-pointer"
                     >
-                        <option value="" className="bg-[#0A0A0A]">All Areas</option>
-                        <option value="1" className="bg-[#0A0A0A]">Indiranagar</option>
-                        <option value="2" className="bg-[#0A0A0A]">Koramangala</option>
-                        <option value="3" className="bg-[#0A0A0A]">Whitefield</option>
-                        <option value="4" className="bg-[#0A0A0A]">HSR Layout</option>
-                        <option value="5" className="bg-[#0A0A0A]">Marathahalli</option>
-                        <option value="6" className="bg-[#0A0A0A]">Bellandur</option>
-                        <option value="7" className="bg-[#0A0A0A]">Jayanagar</option>
-                        <option value="8" className="bg-[#0A0A0A]">BTM Layout</option>
-                        <option value="9" className="bg-[#0A0A0A]">Electronic City</option>
-                        <option value="10" className="bg-[#0A0A0A]">Banashankari</option>
+                        <option value="" className="bg-[#111]">All Areas</option>
+                        <option value="1" className="bg-[#111]">Indiranagar</option>
+                        <option value="2" className="bg-[#111]">Koramangala</option>
+                        <option value="3" className="bg-[#111]">Whitefield</option>
+                        <option value="4" className="bg-[#111]">HSR Layout</option>
+                        <option value="5" className="bg-[#111]">Marathahalli</option>
+                        <option value="6" className="bg-[#111]">Bellandur</option>
+                        <option value="7" className="bg-[#111]">Jayanagar</option>
+                        <option value="8" className="bg-[#111]">BTM Layout</option>
+                        <option value="9" className="bg-[#111]">Electronic City</option>
+                        <option value="10" className="bg-[#111]">Banashankari</option>
                     </select>
                 </div>
 
@@ -61,42 +70,95 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
                         name="property_type"
                         value={filters.property_type}
                         onChange={handleChange}
-                        className="w-full bg-transparent text-white border-b border-gray-800 pb-2 focus:outline-none focus:border-white transition-colors duration-300 text-sm font-medium"
+                        className="w-full bg-transparent text-white border-b border-gray-800 pb-2 focus:outline-none focus:border-[#00A699] transition-colors duration-300 text-sm font-medium appearance-none cursor-pointer"
                     >
-                        <option value="" className="bg-[#0A0A0A]">All Types</option>
-                        <option value="1BHK" className="bg-[#0A0A0A]">1BHK</option>
-                        <option value="2BHK" className="bg-[#0A0A0A]">2BHK</option>
-                        <option value="3BHK" className="bg-[#0A0A0A]">3BHK</option>
-                        <option value="1RK" className="bg-[#0A0A0A]">1RK</option>
-                        <option value="PG" className="bg-[#0A0A0A]">PG</option>
+                        <option value="" className="bg-[#111]">All Types</option>
+                        <option value="1BHK" className="bg-[#111]">1BHK</option>
+                        <option value="2BHK" className="bg-[#111]">2BHK</option>
+                        <option value="3BHK" className="bg-[#111]">3BHK</option>
+                        <option value="1RK" className="bg-[#111]">1RK</option>
+                        <option value="PG" className="bg-[#111]">PG</option>
                     </select>
                 </div>
 
-                {/* Min Rent Input */}
-                <div className="relative">
-                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 block">Min Valuation</span>
-                    <input
-                        name="min_rent"
-                        type="number"
-                        value={filters.min_rent}
-                        onChange={handleChange}
-                        placeholder="₹ 0"
-                        className="w-full bg-transparent text-white border-b border-gray-800 pb-2 focus:outline-none focus:border-white transition-colors duration-300 text-sm font-medium placeholder-gray-700"
-                    />
+                {/* Budget Range */}
+                <div className="col-span-1 md:col-span-2 lg:col-span-1 grid grid-cols-2 gap-4">
+                    <div className="relative">
+                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 block">Min (₹)</span>
+                        <input
+                            name="min_rent"
+                            type="number"
+                            value={filters.min_rent}
+                            onChange={handleChange}
+                            placeholder="0"
+                            className="w-full bg-transparent text-white border-b border-gray-800 pb-2 focus:outline-none focus:border-[#00A699] transition-colors duration-300 text-sm font-medium placeholder-gray-700"
+                        />
+                    </div>
+                    <div className="relative">
+                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 block">Max (₹)</span>
+                        <input
+                            name="max_rent"
+                            type="number"
+                            value={filters.max_rent}
+                            onChange={handleChange}
+                            placeholder="Unlimited"
+                            className="w-full bg-transparent text-white border-b border-gray-800 pb-2 focus:outline-none focus:border-[#00A699] transition-colors duration-300 text-sm font-medium placeholder-gray-700"
+                        />
+                    </div>
                 </div>
 
-                {/* Max Rent Input */}
-                <div className="relative">
-                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 block">Max Valuation</span>
-                    <input
-                        name="max_rent"
-                        type="number"
-                        value={filters.max_rent}
-                        onChange={handleChange}
-                        placeholder="₹ Unlimited"
-                        className="w-full bg-transparent text-white border-b border-gray-800 pb-2 focus:outline-none focus:border-white transition-colors duration-300 text-sm font-medium placeholder-gray-700"
-                    />
+                {/* Advanced Filters */}
+                <div className="col-span-1 md:col-span-2 lg:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-6 pt-2 lg:pt-0">
+
+                    <div className="relative">
+                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 block">Furnishing</span>
+                        <select
+                            name="furnishing_status"
+                            value={filters.furnishing_status}
+                            onChange={handleChange}
+                            className="w-full bg-transparent text-white border-b border-gray-800 pb-2 focus:outline-none focus:border-[#00A699] transition-colors duration-300 text-sm font-medium appearance-none cursor-pointer"
+                        >
+                            <option value="" className="bg-[#111]">Any</option>
+                            <option value="Fully Furnished" className="bg-[#111]">Fully Furnished</option>
+                            <option value="Semi-Furnished" className="bg-[#111]">Semi-Furnished</option>
+                            <option value="Unfurnished" className="bg-[#111]">Unfurnished</option>
+                        </select>
+                    </div>
+
+                    <div className="relative">
+                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 block">Sort By</span>
+                        <select
+                            name="sort_by"
+                            value={filters.sort_by}
+                            onChange={handleChange}
+                            className="w-full bg-transparent text-white border-b border-gray-800 pb-2 focus:outline-none focus:border-[#00A699] transition-colors duration-300 text-sm font-medium appearance-none cursor-pointer"
+                        >
+                            <option value="newest" className="bg-[#111]">Newest First</option>
+                            <option value="price_asc" className="bg-[#111]">Price: Low to High</option>
+                            <option value="price_desc" className="bg-[#111]">Price: High to Low</option>
+                        </select>
+                    </div>
+
+                    <div className="relative flex items-center h-full pb-2">
+                        <label className="flex items-center cursor-pointer group">
+                            <div className="relative">
+                                <input
+                                    type="checkbox"
+                                    name="parking"
+                                    checked={filters.parking}
+                                    onChange={handleChange}
+                                    className="sr-only"
+                                />
+                                <div className={`block w-10 h-6 rounded-full transition-colors ${filters.parking ? 'bg-[#00A699]' : 'bg-gray-800'}`}></div>
+                                <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${filters.parking ? 'transform translate-x-4' : ''}`}></div>
+                            </div>
+                            <span className="ml-3 text-[10px] font-bold text-gray-400 group-hover:text-white uppercase tracking-widest transition-colors">
+                                Requires Parking
+                            </span>
+                        </label>
+                    </div>
                 </div>
+
             </div>
         </div>
     );

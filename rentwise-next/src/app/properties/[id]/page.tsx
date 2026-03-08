@@ -87,19 +87,65 @@ export default async function PropertyDetails({ params }: { params: Promise<{ id
                     </div>
 
                     {/* Metadata Grid */}
-                    <div className="grid grid-cols-2 gap-8 py-8 border-y border-white/10">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-8 py-8 border-y border-white/10">
                         <div>
                             <p className="text-[10px] text-gray-500 font-bold tracking-widest uppercase mb-2">Area Scope</p>
-                            <p className="text-3xl font-black text-white tracking-tighter flex items-end gap-2">
-                                {formattedProperty.size} <span className="text-xs font-bold text-gray-500 tracking-widest mb-1.5 uppercase">sq ft</span>
+                            <p className="text-2xl font-black text-white tracking-tighter flex items-end gap-2">
+                                {formattedProperty.size} <span className="text-[10px] font-bold text-gray-500 tracking-widest mb-1.5 uppercase">sq ft</span>
                             </p>
                         </div>
                         <div>
-                            <p className="text-[10px] text-gray-500 font-bold tracking-widest uppercase mb-2">Tenant Specs</p>
-                            <p className="text-xl font-bold text-gray-300">
-                                {formattedProperty.preferences || 'Unrestricted'}
+                            <p className="text-[10px] text-gray-500 font-bold tracking-widest uppercase mb-2">Bathrooms</p>
+                            <p className="text-2xl font-black text-white tracking-tighter flex items-end gap-2">
+                                {formattedProperty.bathrooms || 1}
                             </p>
                         </div>
+                        <div>
+                            <p className="text-[10px] text-gray-500 font-bold tracking-widest uppercase mb-2">Parking</p>
+                            <p className="text-base font-bold text-white tracking-tight flex items-end gap-2 h-full pb-1">
+                                {formattedProperty.parking ? 'Allocated slot' : 'Not available'}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] text-gray-500 font-bold tracking-widest uppercase mb-2">Furnishing</p>
+                            <p className="text-base font-bold text-[#00A699] tracking-tight flex items-end gap-2 h-full pb-1">
+                                {formattedProperty.furnishing_status || 'Unfurnished'}
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* About Property */}
+                    {formattedProperty.description && (
+                        <div className="pt-4">
+                            <h3 className="text-[10px] text-gray-500 font-bold tracking-widest uppercase mb-4">About this Property</h3>
+                            <p className="text-gray-300 text-sm leading-relaxed font-medium">
+                                {formattedProperty.description}
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Tenant Specs & Amenities */}
+                    <div className="pt-4 flex flex-col gap-6 w-full">
+                        <div>
+                            <h3 className="text-[10px] text-gray-500 font-bold tracking-widest uppercase mb-4">Tenant Requirements</h3>
+                            <div className="inline-flex items-center px-4 py-2 bg-white/5 border border-white/10 text-xs font-bold text-white tracking-widest">
+                                {formattedProperty.preferences || 'Unrestricted'}
+                            </div>
+                        </div>
+
+                        {formattedProperty.amenities && formattedProperty.amenities.length > 0 && (
+                            <div>
+                                <h3 className="text-[10px] text-gray-500 font-bold tracking-widest uppercase mb-4 mt-6">Amenities Included</h3>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                    {formattedProperty.amenities.map((amenity: string, idx: number) => (
+                                        <div key={idx} className="flex items-center p-3 border border-white/5 bg-[#050505]">
+                                            <span className="w-1.5 h-1.5 bg-[#00A699] rounded-full mr-3"></span>
+                                            <span className="text-xs font-bold text-gray-300 tracking-wider uppercase">{amenity}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Location Link */}
@@ -146,8 +192,8 @@ export default async function PropertyDetails({ params }: { params: Promise<{ id
                             </div>
 
                             <div className={`flex items-center p-3 border text-[10px] font-bold tracking-widest uppercase ${isGoodDeal
-                                    ? 'bg-[#00A699]/10 text-[#00A699] border-[#00A699]/30'
-                                    : 'bg-[#FF385C]/10 text-[#FF385C] border-[#FF385C]/30'
+                                ? 'bg-[#00A699]/10 text-[#00A699] border-[#00A699]/30'
+                                : 'bg-[#FF385C]/10 text-[#FF385C] border-[#FF385C]/30'
                                 }`}>
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     {isGoodDeal

@@ -12,6 +12,9 @@ export default function Properties() {
         property_type: '',
         min_rent: '',
         max_rent: '',
+        furnishing_status: '',
+        parking: false,
+        sort_by: 'newest',
     });
     const [isLoading, setIsLoading] = useState(true);
     const supabase = createClient();
@@ -21,21 +24,25 @@ export default function Properties() {
             setIsLoading(true);
 
             let query = supabase.from('properties').select(`
-        *,
-        areas ( name )
-      `);
+                *,
+                areas ( name )
+            `);
 
-            if (filters.area_id) {
-                query = query.eq('area_id', filters.area_id);
-            }
-            if (filters.property_type) {
-                query = query.eq('property_type', filters.property_type);
-            }
-            if (filters.min_rent) {
-                query = query.gte('rent', filters.min_rent);
-            }
-            if (filters.max_rent) {
-                query = query.lte('rent', filters.max_rent);
+            if (filters.area_id) query = query.eq('area_id', filters.area_id);
+            if (filters.property_type) query = query.eq('property_type', filters.property_type);
+            if (filters.min_rent) query = query.gte('rent', filters.min_rent);
+            if (filters.max_rent) query = query.lte('rent', filters.max_rent);
+            if (filters.furnishing_status) query = query.eq('furnishing_status', filters.furnishing_status);
+            if (filters.parking) query = query.eq('parking', true);
+
+            // Sorting logic
+            if (filters.sort_by === 'price_asc') {
+                query = query.order('rent', { ascending: true });
+            } else if (filters.sort_by === 'price_desc') {
+                query = query.order('rent', { ascending: false });
+            } else {
+                // newest
+                query = query.order('created_at', { ascending: false });
             }
 
             const { data, error } = await query;
