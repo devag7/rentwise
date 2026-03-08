@@ -1,17 +1,30 @@
 import { createClient } from '@/utils/supabase/server';
 import { notFound } from 'next/navigation';
 
+// Keep the same prediction logic as PropertyCard
+const calculateAIPrediction = (area_name: string, size: number, type: string) => {
+    let baseRatePerSqFt = 20;
+
+    const premiumAreas = ['Indiranagar', 'Koramangala', 'Whitefield', 'HSR Layout'];
+    const standardAreas = ['Marathahalli', 'Bellandur', 'Jayanagar'];
+
+    if (premiumAreas.includes(area_name)) baseRatePerSqFt = 35;
+    else if (standardAreas.includes(area_name)) baseRatePerSqFt = 25;
+
+    let prediction = size * baseRatePerSqFt;
+    if (type === '3BHK') prediction += 8000;
+    if (type === '2BHK') prediction += 4000;
+
+    return Math.round(prediction / 500) * 500;
+};
+
 export default async function PropertyDetails({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
     const supabase = await createClient();
 
-    // Fetch property and its associated area
     const { data: property, error } = await supabase
         .from('properties')
-        .select(`
-      *,
-      areas ( name )
-    `)
+        .select(`*, areas ( name )`)
         .eq('property_id', id)
         .single();
 
@@ -19,144 +32,159 @@ export default async function PropertyDetails({ params }: { params: Promise<{ id
         return notFound();
     }
 
-    // Format the area name
     const formattedProperty = {
         ...property,
         area_name: property.areas?.name || 'Unknown Area'
     };
 
-    return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white flex justify-center pb-20 pt-28 px-6 transition-colors duration-300">
-            <div className="relative max-w-4xl w-full bg-white dark:bg-[#1E1E1E] rounded-3xl shadow-xl dark:shadow-2xl p-8 md:p-12 border border-gray-100 dark:border-gray-800">
+    const predictedPrice = calculateAIPrediction(formattedProperty.area_name, formattedProperty.size, formattedProperty.property_type);
+    const difference = predictedPrice - formattedProperty.rent;
+    const isGoodDeal = difference >= 0;
+    const differencePercent = Math.abs((difference / predictedPrice) * 100).toFixed(0);
 
-                {/* Property Image */}
-                <div className="relative w-full h-80 md:h-96 rounded-2xl overflow-hidden mb-8 shadow-inner bg-gray-100 dark:bg-gray-800">
-                    {formattedProperty.image_data ? (
-                        <img
-                            src={`data:image/jpeg;base64,${formattedProperty.image_data}`}
-                            alt={formattedProperty.address}
-                            className="w-full h-full object-cover rounded-2xl transition-transform transform hover:scale-105 duration-700"
-                        />
-                    ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center text-gray-400">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            <span className="font-medium text-lg">No Image Available</span>
+    return (
+        <div className="min-h-screen bg-[#0A0A0A] text-white flex justify-center pb-20 pt-32 px-6 selection:bg-[#FF385C] selection:text-white">
+            <div className="relative max-w-5xl w-full bg-[#111] rounded-none shadow-2xl p-0 md:p-12 border border-white/10 flex flex-col md:flex-row gap-12">
+
+                {/* Left Column: Image & Details */}
+                <div className="flex-1 w-full flex flex-col gap-10">
+
+                    {/* Header */}
+                    <div>
+                        <div className="flex items-center gap-3 mb-6">
+                            <span className="px-3 py-1.5 bg-black text-white border border-white/20 text-[10px] font-bold tracking-widest uppercase">
+                                {formattedProperty.property_type}
+                            </span>
+                            <span className="flex items-center text-gray-500 text-[10px] font-bold tracking-widest uppercase">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                                {formattedProperty.area_name}
+                            </span>
+                        </div>
+                        <h1 className="text-4xl md:text-6xl font-black text-white leading-[1.1] mb-2 tracking-tighter">
+                            {formattedProperty.address}
+                        </h1>
+                    </div>
+
+                    {/* Property Image */}
+                    <div className="relative w-full aspect-[4/3] overflow-hidden bg-[#050505] border border-white/10 group">
+                        {formattedProperty.image_data ? (
+                            <img
+                                src={`data:image/jpeg;base64,${formattedProperty.image_data}`}
+                                alt={formattedProperty.address}
+                                className="w-full h-full object-cover transition-transform transform group-hover:scale-105 duration-1000"
+                            />
+                        ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 font-mono text-xs tracking-widest">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                NO MEDIA AVAILABLE
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Metadata Grid */}
+                    <div className="grid grid-cols-2 gap-8 py-8 border-y border-white/10">
+                        <div>
+                            <p className="text-[10px] text-gray-500 font-bold tracking-widest uppercase mb-2">Area Scope</p>
+                            <p className="text-3xl font-black text-white tracking-tighter flex items-end gap-2">
+                                {formattedProperty.size} <span className="text-xs font-bold text-gray-500 tracking-widest mb-1.5 uppercase">sq ft</span>
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] text-gray-500 font-bold tracking-widest uppercase mb-2">Tenant Specs</p>
+                            <p className="text-xl font-bold text-gray-300">
+                                {formattedProperty.preferences || 'Unrestricted'}
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Location Link */}
+                    {formattedProperty.google_maps_link && (
+                        <div>
+                            <a
+                                href={formattedProperty.google_maps_link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center text-white hover:text-[#FF385C] font-bold text-xs uppercase tracking-widest transition-colors duration-300 group"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                                </svg>
+                                <span className="group-hover:tracking-[0.2em] transition-all duration-300">Open Map Coordinates</span>
+                            </a>
                         </div>
                     )}
                 </div>
 
-                {/* Property Info */}
-                <div className="grid md:grid-cols-3 gap-10">
-                    <div className="md:col-span-2 space-y-6">
-                        <div>
-                            <div className="flex items-center gap-3 mb-3">
-                                <span className="px-3 py-1 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-full text-xs font-bold tracking-wide uppercase">
-                                    {formattedProperty.property_type}
-                                </span>
-                                <span className="flex items-center text-gray-500 dark:text-gray-400 text-sm font-medium">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    </svg>
-                                    {formattedProperty.area_name}
-                                </span>
-                            </div>
-                            <h1 className="text-3xl md:text-5xl font-extrabold text-gray-900 dark:text-white leading-tight mb-4 text-balance">
-                                {formattedProperty.address}
-                            </h1>
-                        </div>
+                {/* Right Column: Pricing & Action */}
+                <div className="w-full md:w-[400px]">
+                    <div className="bg-[#050505] p-8 border border-white/10 h-fit sticky top-28 flex flex-col">
 
-                        <div className="grid grid-cols-2 gap-4 py-6 border-y border-gray-100 dark:border-gray-800">
-                            <div>
-                                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Size</p>
-                                <p className="text-xl font-bold text-gray-900 dark:text-white flex items-baseline gap-1">
-                                    {formattedProperty.size} <span className="text-sm font-normal text-gray-500">sq ft</span>
-                                </p>
-                            </div>
-                            <div>
-                                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Preferences</p>
-                                <p className="text-lg font-bold text-gray-800 dark:text-gray-200">
-                                    {formattedProperty.preferences || 'None specified'}
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Google Maps link if available */}
-                        {formattedProperty.google_maps_link && (
-                            <div className="pt-2">
-                                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3">Location</h3>
-                                <a
-                                    href={formattedProperty.google_maps_link}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium transition group"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                                    </svg>
-                                    <span className="group-hover:underline underline-offset-4 decoration-blue-500/30">View on Google Maps</span>
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                                    </svg>
-                                </a>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Pricing & Contact Sidebar */}
-                    <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-2xl border border-gray-100 dark:border-gray-700/50 h-fit sticky top-24">
-                        <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Monthly Rent</p>
-                        <div className="flex items-end gap-2 mb-6">
-                            <span className="text-4xl font-extrabold text-gray-900 dark:text-white">
+                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Asking Valuation</p>
+                        <div className="flex items-end mb-8">
+                            <span className="text-5xl font-black text-white tracking-tighter leading-none">
                                 ₹{formattedProperty.rent.toLocaleString('en-IN')}
                             </span>
+                            <span className="text-gray-500 font-bold text-xs tracking-widest uppercase ml-2 mb-1">/ Month</span>
                         </div>
 
-                        {formattedProperty.priceStatus && (
-                            <div className={`flex items-center p-3 rounded-xl mb-8 ${formattedProperty.priceStatus === 'overpriced'
-                                    ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400 border border-red-100 dark:border-red-900/30'
-                                    : 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border border-green-100 dark:border-green-900/30'
+                        {/* AI Analysis Block */}
+                        <div className="mb-10 bg-[#0A0A0A] border border-white/5 p-6 relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-1 h-full bg-[#00A699]"></div>
+                            <h4 className="text-[10px] font-bold text-[#00A699] uppercase tracking-widest mb-4 flex items-center">
+                                <span className="w-2 h-2 bg-[#00A699] rounded-full animate-pulse mr-2"></span>
+                                AI Market Analysis
+                            </h4>
+
+                            <div className="flex justify-between items-end mb-4">
+                                <span className="text-gray-400 font-medium text-sm">Estimated Fair Value</span>
+                                <span className="text-2xl font-bold text-white tracking-tight">₹{predictedPrice.toLocaleString('en-IN')}</span>
+                            </div>
+
+                            <div className={`flex items-center p-3 border text-[10px] font-bold tracking-widest uppercase ${isGoodDeal
+                                    ? 'bg-[#00A699]/10 text-[#00A699] border-[#00A699]/30'
+                                    : 'bg-[#FF385C]/10 text-[#FF385C] border-[#FF385C]/30'
                                 }`}>
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    {formattedProperty.priceStatus === 'overpriced'
-                                        ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                        : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    {isGoodDeal
+                                        ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                        : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                                     }
                                 </svg>
-                                <span className="text-sm font-bold">
-                                    {formattedProperty.priceStatus === 'overpriced' ? 'Priced above market average' : 'Fairly priced for this area'}
+                                <span>
+                                    {isGoodDeal ? `Priced ${differencePercent}% Below Market` : `Priced ${differencePercent}% Above Market`}
                                 </span>
                             </div>
-                        )}
+                        </div>
 
-                        <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
+                        {/* Action Area */}
+                        <div>
                             {formattedProperty.landlord_phone ? (
                                 <a
                                     href={`tel:${formattedProperty.landlord_phone}`}
-                                    className="w-full py-4 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-500/30 transition-all transform hover:-translate-y-0.5 flex justify-center items-center group"
+                                    className="w-full py-5 px-4 bg-white text-black font-bold text-xs uppercase tracking-widest text-center transition-all duration-300 hover:bg-[#FF385C] hover:text-white inline-block"
                                 >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                                    </svg>
-                                    Call Owner
+                                    Initiate Contact
                                 </a>
                             ) : (
-                                <button className="w-full py-4 px-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold rounded-xl shadow-md hover:shadow-lg transition-all flex justify-center items-center">
-                                    Contact Owner
+                                <button disabled className="w-full py-5 px-4 bg-white/5 text-gray-500 font-bold text-xs uppercase tracking-widest cursor-not-allowed border border-white/10">
+                                    Owner Contact Hidden
                                 </button>
                             )}
 
                             {formattedProperty.landlord_phone && (
-                                <p className="text-center text-sm font-mono font-medium text-gray-500 dark:text-gray-400 mt-4">
-                                    {formattedProperty.landlord_phone}
+                                <p className="text-center text-[10px] font-mono font-medium text-gray-500 uppercase tracking-widest mt-4">
+                                    Direct Line: {formattedProperty.landlord_phone}
                                 </p>
                             )}
                         </div>
                     </div>
-
                 </div>
+
             </div>
         </div>
     );

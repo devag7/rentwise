@@ -13,10 +13,10 @@ body {
 
 @layer utilities {
   .glass {
-    @apply bg-white/10 backdrop-blur-lg border border-white/20;
+    @apply bg-white/70 backdrop-blur-xl border border-white/50 shadow-[0_8px_30px_rgb(0, 0, 0, 0.04)];
   }
 
   .glass-dark {
-    @apply bg-gray-900/70 backdrop-blur-lg border border-gray-700;
+    @apply bg-[#0A0A0A]/80 backdrop-blur-2xl border-b border-white/5 shadow-2xl;
   }
 }

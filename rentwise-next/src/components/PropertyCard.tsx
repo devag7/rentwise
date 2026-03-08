@@ -8,94 +8,111 @@ export interface Property {
     rent: number;
     size: number;
     image_data?: string;
-    priceStatus?: 'overpriced' | 'fair';
 }
 
+// Pseudo AI Algorithm: Predicts a fair price based on the area's base rate and flat size.
+const calculateAIPrediction = (area_name: string, size: number, type: string) => {
+    let baseRatePerSqFt = 20; // Default base rate
+
+    const premiumAreas = ['Indiranagar', 'Koramangala', 'Whitefield', 'HSR Layout'];
+    const standardAreas = ['Marathahalli', 'Bellandur', 'Jayanagar'];
+
+    if (premiumAreas.includes(area_name)) baseRatePerSqFt = 35;
+    else if (standardAreas.includes(area_name)) baseRatePerSqFt = 25;
+
+    let prediction = size * baseRatePerSqFt;
+
+    // Add type premiums
+    if (type === '3BHK') prediction += 8000;
+    if (type === '2BHK') prediction += 4000;
+
+    return Math.round(prediction / 500) * 500; // Round to nearest 500
+};
+
 export default function PropertyCard({ property }: { property: Property }) {
-    // Generate a mock AI Match Score based on property features
-    const matchScore = Math.floor(80 + (property.property_id % 20));
-    const getScoreColor = (score: number) => {
-        if (score >= 95) return 'text-green-500 bg-green-500/10 border-green-500/20';
-        if (score >= 90) return 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20';
-        if (score >= 85) return 'text-blue-500 bg-blue-500/10 border-blue-500/20';
-        return 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20';
-    };
+
+    const predictedPrice = calculateAIPrediction(property.area_name, property.size, property.property_type);
+    const difference = predictedPrice - property.rent;
+    const isGoodDeal = difference >= 0;
+    const differencePercent = Math.abs((difference / predictedPrice) * 100).toFixed(0);
 
     return (
-        <div className="group bg-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-2xl border border-gray-100 dark:border-gray-700 overflow-hidden transform transition-all duration-300 hover:-translate-y-1 flex flex-col h-full">
-            <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100 dark:bg-gray-900">
+        <div className="group bg-white dark:bg-[#0A0A0A] rounded-none border border-gray-200 dark:border-white/10 overflow-hidden transform transition-all duration-500 hover:border-gray-900 dark:hover:border-white/30 flex flex-col h-full shadow-sm">
+            <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100 dark:bg-[#111]">
                 {property.image_data ? (
                     <img
                         src={`data:image/jpeg;base64,${property.image_data}`}
                         alt={property.address}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                        className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+                        loading="lazy"
                     />
                 ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-400 font-medium">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mb-2 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 font-mono text-xs tracking-widest bg-gray-100 dark:bg-[#0D0D0D]">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mb-3 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
+                        NO IMAGE DATA
                     </div>
                 )}
 
-                <div className="absolute inset-0 bg-gradient-to-t from-gray-900/80 via-transparent to-transparent opacity-80"></div>
-
-                <div className="absolute top-4 right-4 z-10">
-                    <div className={`px-3 py-1.5 rounded-full border backdrop-blur-md flex items-center shadow-lg ${getScoreColor(matchScore)}`}>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
-                        </svg>
-                        <span className="text-sm font-bold tracking-tight">{matchScore}% Match</span>
-                    </div>
-                </div>
-
-                <div className="absolute bottom-4 left-4 z-10">
-                    <span className="px-3 py-1 bg-white/20 backdrop-blur-md border border-white/30 text-white rounded-lg text-xs font-bold tracking-wide shadow-sm">
+                <div className="absolute top-4 left-4 z-10">
+                    <span className="px-3 py-1.5 bg-black/80 backdrop-blur-md text-white text-[10px] font-bold tracking-widest uppercase border border-white/10">
                         {property.property_type}
                     </span>
                 </div>
+
+                {/* AI Deal Badge */}
+                <div className="absolute top-4 right-4 z-10 flex flex-col items-end">
+                    <div className={`px-2 py-1 flex items-center shadow-lg border backdrop-blur-md text-[10px] font-bold tracking-widest uppercase ${isGoodDeal
+                            ? 'bg-[#00A699]/90 text-white border-[#00A699]'
+                            : 'bg-[#FF385C]/90 text-white border-[#FF385C]'
+                        }`}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        {isGoodDeal ? `${differencePercent}% UNDER MARKET` : `${differencePercent}% OVER MARKET`}
+                    </div>
+                </div>
+
+                <div className="absolute bottom-4 right-4 z-10 text-white text-xs font-bold tracking-widest flex items-center bg-black/50 px-2 py-1 backdrop-blur-sm border border-white/20">
+                    {property.size} SQ.FT
+                </div>
             </div>
 
-            <div className="p-6 flex flex-col flex-grow">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2 line-clamp-1 group-hover:text-blue-500 transition-colors">
+            <div className="p-6 flex flex-col flex-grow bg-white dark:bg-[#0A0A0A]">
+
+                <h3 className="text-xl font-black text-gray-900 dark:text-white line-clamp-1 mb-1 tracking-tight">
                     {property.address}
                 </h3>
 
-                <p className="text-gray-500 dark:text-gray-400 text-sm flex items-center mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
+                <p className="text-gray-500 dark:text-gray-400 text-xs font-medium tracking-widest uppercase mb-6 flex items-center">
                     {property.area_name}
                 </p>
 
-                <div className="mt-auto pt-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
-                    <div className="flex flex-col">
-                        <span className="text-xs text-gray-500 dark:text-gray-400 font-medium tracking-wide uppercase">Monthly Rent</span>
-                        <div className="flex items-center gap-2">
-                            <span className="text-2xl font-extrabold text-gray-900 dark:text-white">
+                <div className="mt-auto pt-6 border-t border-gray-100 dark:border-white/10 flex flex-col gap-4">
+
+                    {/* Price Comparison Block */}
+                    <div className="flex justify-between items-end">
+                        <div className="flex flex-col">
+                            <span className="text-[10px] text-gray-500 dark:text-gray-400 font-bold tracking-widest uppercase mb-1">Asking Rent</span>
+                            <span className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter leading-none">
                                 ₹{property.rent.toLocaleString('en-IN')}
                             </span>
-                            {property.priceStatus && (
-                                <span className={`flex items-center text-xs font-bold px-2 py-0.5 rounded-md ${property.priceStatus === 'overpriced'
-                                        ? 'bg-red-100 text-red-700 border border-red-200'
-                                        : 'bg-green-100 text-green-700 border border-green-200'
-                                    }`}>
-                                    {property.priceStatus === 'overpriced' ? 'OVERPRICED' : 'FAIR PRICE'}
-                                </span>
-                            )}
+                        </div>
+
+                        <div className="flex flex-col items-end text-right">
+                            <span className="text-[10px] text-gray-500 dark:text-gray-400 font-bold tracking-widest uppercase mb-1 text-[#00A699]">AI Valuation</span>
+                            <span className="text-sm font-bold text-gray-400 line-through decoration-2 decoration-gray-500/50">
+                                ₹{predictedPrice.toLocaleString('en-IN')}
+                            </span>
                         </div>
                     </div>
 
                     <Link
                         href={`/properties/${property.property_id}`}
-                        className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-all duration-300 shadow-sm"
-                        aria-label="View Details"
+                        className="w-full mt-2 py-3 border border-gray-900 dark:border-white text-gray-900 dark:text-white text-center text-xs font-bold tracking-widest uppercase hover:bg-gray-900 hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors duration-300"
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transform group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
+                        View Details
                     </Link>
                 </div>
             </div>

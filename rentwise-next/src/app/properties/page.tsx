@@ -62,28 +62,29 @@ export default function Properties() {
     };
 
     return (
-        <div className="w-full pt-28 pb-12 px-6 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen transition-colors duration-300">
+        <div className="w-full pt-32 pb-24 px-6 bg-[#0A0A0A] text-white min-h-screen selection:bg-[#FF385C] selection:text-white">
             <div className="max-w-7xl mx-auto">
-                <h2 className="text-4xl font-extrabold mb-8 text-center bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
-                    Available Properties
-                </h2>
+                <div className="mb-12">
+                    <h2 className="text-sm font-bold tracking-widest text-[#FF385C] uppercase mb-4">Live Inventory</h2>
+                    <h3 className="text-5xl font-black tracking-tighter text-white">Analyzed Properties.</h3>
+                </div>
 
                 <FilterBar onFilterChange={handleFilterChange} />
 
                 {isLoading ? (
                     <div className="flex justify-center items-center h-64">
-                        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+                        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#FF385C]"></div>
                     </div>
                 ) : properties.length === 0 ? (
-                    <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div className="text-center py-32 bg-[#111] border border-white/5 flex flex-col items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-700 mb-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        <h3 className="text-xl font-bold text-gray-700 dark:text-gray-300">No properties found</h3>
-                        <p className="text-gray-500 mt-2">Try adjusting your filters to find what you&apos;re looking for.</p>
+                        <h3 className="text-2xl font-black text-white tracking-tighter mb-2">Zero Matches Found</h3>
+                        <p className="text-gray-500 font-light max-w-sm">Adjust your parameters. Our model only displays inventory that aligns with strict valuation criteria.</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 mt-6 w-full">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-6 w-full">
                         {properties.map(p => (
                             <PropertyCard key={p.property_id} property={p} />
                         ))}
