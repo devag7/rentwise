@@ -16,9 +16,9 @@ jobs:
       - name: Deploy to Droplet via SSH
         uses: appleboy/ssh-action@v1.0.0
         with:
-          host: ${{ secrets.DROPLET_IP }}
+          host: ${{ secrets.HOST }}
           username: root
-          password: ${{ secrets.DROPLET_PASSWORD }}
+          password: ${{ secrets.PASSWORD }}
           # Alternatively, use SSH key if password auth is disabled:
           # key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
