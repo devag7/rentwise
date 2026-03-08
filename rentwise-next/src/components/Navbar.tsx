@@ -12,9 +12,9 @@ export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
-    const supabase = createClient();
 
     useEffect(() => {
+        const supabase = createClient();
         const fetchUser = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             setUser(session?.user || null);
@@ -32,9 +32,10 @@ export default function Navbar() {
         };
 
         fetchUser();
-    }, [supabase.auth]);
+    }, []);
 
     const handleLogout = async () => {
+        const supabase = createClient();
         await supabase.auth.signOut();
         router.push('/');
     };
