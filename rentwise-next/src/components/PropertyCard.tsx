@@ -97,6 +97,9 @@ export default function PropertyCard({ property }: { property: Property }) {
     const difference = predictedPrice - property.rent;
     const isGoodDeal = difference >= 0;
     const differencePercent = Math.abs((difference / predictedPrice) * 100).toFixed(0);
+    const matchScore = isGoodDeal
+        ? Math.min(99, 82 + parseInt(differencePercent))
+        : Math.max(50, 82 - parseInt(differencePercent));
 
     return (
         <div className="group bg-white dark:bg-[#0A0A0A] rounded-none border border-gray-200 dark:border-white/10 overflow-hidden transform transition-all duration-500 hover:border-gray-900 dark:hover:border-white/30 flex flex-col h-full shadow-sm relative">
@@ -161,9 +164,16 @@ export default function PropertyCard({ property }: { property: Property }) {
 
             <div className="p-6 flex flex-col flex-grow bg-white dark:bg-[#0A0A0A]">
 
-                <h3 className="text-xl font-black text-gray-900 dark:text-white line-clamp-1 mb-1 tracking-tight">
-                    {property.address}
-                </h3>
+                <div className="flex justify-between items-start mb-1 gap-2">
+                    <h3 className="text-xl font-black text-gray-900 dark:text-white line-clamp-1 tracking-tight">
+                        {property.address}
+                    </h3>
+                    {/* Unique PropScore Metric */}
+                    <div className="bg-gray-900 dark:bg-white text-white dark:text-black text-[10px] font-bold tracking-widest px-2 py-1 flex items-center shrink-0 shadow-sm">
+                        <span className="text-[#00A699] mr-1">✦</span>
+                        {matchScore}% MATCH
+                    </div>
+                </div>
 
                 <p className="text-gray-500 dark:text-gray-400 text-xs font-medium tracking-widest uppercase mb-6 flex items-center">
                     {property.area_name}
