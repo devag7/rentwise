@@ -10,7 +10,13 @@ RUN npm ci
 # Copy full source and build application
 COPY . .
 # We need environment variables at build time if deploying directly, 
-# but normally injecting them at runtime in docker-compose is fine since we aren't using static rendering that relies on them.
+# because Next.js prerenders static pages that rely on the Supabase client.
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+
 RUN npm run build
 
 # --- Stage 2: Production Image ---
