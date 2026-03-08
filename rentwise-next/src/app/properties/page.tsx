@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import PropertyCard, { Property } from '@/components/PropertyCard';
 import FilterBar, { FilterState } from '@/components/FilterBar';
 import { createClient } from '@/utils/supabase/client';
+import MapboxCluster from '@/components/property/MapboxCluster';
 
 export default function Properties() {
     const [properties, setProperties] = useState<Property[]>([]);
@@ -17,6 +18,7 @@ export default function Properties() {
         sort_by: 'newest',
     });
     const [isLoading, setIsLoading] = useState(true);
+    const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
     const supabase = createClient();
 
     useEffect(() => {
@@ -78,6 +80,28 @@ export default function Properties() {
 
                 <FilterBar onFilterChange={handleFilterChange} />
 
+                <div className="flex justify-between items-center mt-6 border-b border-white/10 pb-6 mb-8">
+                    <p className="text-gray-500 font-mono text-[10px] uppercase tracking-widest">{properties.length} Results Found</p>
+                    <div className="flex border border-white/20 p-1 bg-[#111]">
+                        <button
+                            onClick={() => setViewMode('grid')}
+                            className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-colors ${viewMode === 'grid' ? 'bg-white text-black' : 'text-gray-500 hover:text-white'}`}
+                        >
+                            Data Grid
+                        </button>
+                        <button
+                            onClick={() => setViewMode('map')}
+                            className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-colors ${viewMode === 'map' ? 'bg-[#00A699] text-white overflow-hidden relative' : 'text-gray-500 hover:text-[#00A699]'}`}
+                        >
+                            {viewMode === 'map' && <span className="absolute inset-0 bg-[#00A699] animate-pulse opacity-50"></span>}
+                            <span className="relative z-10 flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 bg-white rounded-full"></span>
+                                Geo Matrix
+                            </span>
+                        </button>
+                    </div>
+                </div>
+
                 {isLoading ? (
                     <div className="flex justify-center items-center h-64">
                         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#FF385C]"></div>
@@ -90,8 +114,12 @@ export default function Properties() {
                         <h3 className="text-2xl font-black text-white tracking-tighter mb-2">Zero Matches Found</h3>
                         <p className="text-gray-500 font-light max-w-sm">Adjust your parameters. Our model only displays inventory that aligns with strict valuation criteria.</p>
                     </div>
+                ) : viewMode === 'map' ? (
+                    <div className="w-full animate-fade-in shadow-2xl">
+                        <MapboxCluster properties={properties} />
+                    </div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-6 w-full">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full animate-fade-in">
                         {properties.map(p => (
                             <PropertyCard key={p.property_id} property={p} />
                         ))}

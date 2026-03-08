@@ -14,6 +14,8 @@ export interface Property {
     bathrooms?: number;
     parking?: boolean;
     furnishing_status?: string;
+    longitude?: number;
+    latitude?: number;
 }
 
 // Pseudo AI Algorithm: Predicts a fair price based on the area's base rate and flat size.

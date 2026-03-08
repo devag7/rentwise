@@ -1,121 +1,32 @@
-'use client'
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { createClient } from '@/utils/supabase/client';
-import toast from 'react-hot-toast';
 
-export default function Login() {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const router = useRouter();
-    const supabase = createClient();
-
-    // Check if user is already logged in
-    useEffect(() => {
-        const checkUser = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                if (session.user.user_metadata?.role === 'landlord') {
-                    router.push('/dashboard');
-                } else {
-                    router.push('/properties');
-                }
-            }
-        };
-        checkUser();
-    }, [router, supabase.auth]);
-
-    const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsLoading(true);
-        const loadingToast = toast.loading('Authenticating...');
-
-        try {
-            const { data, error } = await supabase.auth.signInWithPassword({
-                email,
-                password,
-            });
-
-            if (error) {
-                throw error;
-            }
-
-            // Force a router refresh to update server components (Middleware)
-            router.refresh();
-
-            const role = data.user.user_metadata?.role;
-            toast.success('Welcome back.', { id: loadingToast });
-            if (role === 'landlord') {
-                router.push('/dashboard');
-            } else {
-                router.push('/properties');
-            }
-
-        } catch (err: unknown) {
-            toast.error(((err as Error).message || 'Invalid credentials'), { id: loadingToast });
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
+export default function LoginHub() {
     return (
-        <div className="flex items-center justify-center min-h-screen bg-[#0A0A0A] text-white pt-20 selection:bg-[#FF385C] selection:text-white">
-            <div className="w-full max-w-sm bg-[#111] rounded-none p-10 border border-white/10">
-
-                {/* Title */}
-                <h2 className="text-sm font-bold tracking-widest text-[#FF385C] uppercase mb-8 flex items-center gap-3">
-                    <span className="w-2 h-2 bg-[#FF385C] rounded-full animate-pulse"></span>
-                    Terminal Access
+        <div className="flex items-center justify-center min-h-screen bg-[#0A0A0A] text-white pt-20 selection:bg-[#00A699] selection:text-white">
+            <div className="w-full max-w-2xl bg-[#111] rounded-none p-10 md:p-16 border border-white/10 text-center">
+                <h2 className="text-3xl font-black tracking-tighter text-white uppercase mb-4 flex flex-col items-center gap-3">
+                    <span className="w-3 h-3 bg-[#00A699] rounded-full animate-pulse shadow-[0_0_15px_#00A699]"></span>
+                    Authenticate Session
                 </h2>
+                <p className="text-gray-500 font-mono text-xs uppercase tracking-widest mb-12 border-b border-white/10 pb-6">Select your operational clearance level</p>
 
-                {/* Login Form */}
-                <form onSubmit={handleLogin} className="space-y-6">
-                    <div className="space-y-5">
-                        <div className="relative">
-                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Email Address</label>
-                            <input
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors placeholder-gray-700 font-mono text-sm"
-                                required
-                                disabled={isLoading}
-                                placeholder="sys.admin@rentwise.com"
-                            />
-                        </div>
-                        <div className="relative">
-                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Security Key</label>
-                            <input
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors placeholder-gray-700 font-mono text-sm"
-                                required
-                                disabled={isLoading}
-                                placeholder="••••••••"
-                            />
-                        </div>
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Link href="/login/tenant" className="group relative block p-8 border border-white/10 hover:border-[#00A699] bg-black/50 hover:bg-[#00A699]/5 transition-all duration-500">
+                        <div className="absolute top-0 left-0 w-1 h-full bg-[#00A699] scale-y-0 group-hover:scale-y-100 transition-transform origin-top"></div>
+                        <h3 className="text-xl font-bold text-white mb-2 tracking-widest uppercase">Tenant</h3>
+                        <p className="text-[10px] text-gray-500 font-mono tracking-widest uppercase">Access Saved Coordinates & Applications</p>
+                    </Link>
 
-                    <button
-                        type="submit"
-                        className="w-full py-4 bg-white text-black font-bold text-xs uppercase tracking-widest transition-all duration-300 hover:bg-[#FF385C] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed mt-4"
-                        disabled={isLoading}
-                    >
-                        {isLoading ? (
-                            <span className="animate-pulse">Authenticating...</span>
-                        ) : (
-                            "Initialize Session"
-                        )}
-                    </button>
-                </form>
+                    <Link href="/login/landlord" className="group relative block p-8 border border-white/10 hover:border-[#FF385C] bg-black/50 hover:bg-[#FF385C]/5 transition-all duration-500">
+                        <div className="absolute top-0 left-0 w-1 h-full bg-[#FF385C] scale-y-0 group-hover:scale-y-100 transition-transform origin-top"></div>
+                        <h3 className="text-xl font-bold text-white mb-2 tracking-widest uppercase">Landlord</h3>
+                        <p className="text-[10px] text-gray-500 font-mono tracking-widest uppercase">Manage Listings & Analytics Metrics</p>
+                    </Link>
+                </div>
 
-                {/* Register Link */}
-                <div className="mt-8 pt-6 border-t border-white/10">
-                    <p className="text-left text-gray-500 text-[10px] uppercase font-bold tracking-widest">
+                <div className="mt-12 pt-8 border-t border-white/10">
+                    <p className="text-gray-500 text-[10px] uppercase font-bold tracking-widest">
                         Unregistered Agent?
                         <Link href="/register" className="text-white hover:text-[#00A699] ml-2 transition-colors">
                             Request Credentials

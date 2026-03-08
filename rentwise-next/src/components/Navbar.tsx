@@ -79,6 +79,22 @@ export default function Navbar() {
                         </li>
                     )}
 
+                    {!loading && user && user.user_metadata?.role === 'tenant' && (
+                        <li>
+                            <Link href="/dashboard" className={pathname === '/dashboard' ? "text-[#00A699] block" : "text-gray-400 hover:text-[#00A699] transition-colors block"}>
+                                Dashboard
+                            </Link>
+                        </li>
+                    )}
+
+                    {!loading && user && (
+                        <li>
+                            <Link href="/messages" className={pathname === '/messages' ? "text-[#FF385C] block" : "text-gray-400 hover:text-white transition-colors block"}>
+                                Messages
+                            </Link>
+                        </li>
+                    )}
+
                     {!loading && (
                         user ? (
                             <li>
