@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
+import toast from 'react-hot-toast';
 
 export default function Register() {
     const [username, setUsername] = useState('');
@@ -11,15 +12,13 @@ export default function Register() {
     const [password, setPassword] = useState('');
     const [role, setRole] = useState('tenant');
     const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState('');
-
     const router = useRouter();
     const supabase = createClient();
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        setError('');
+        const loadingToast = toast.loading('Initializing Account...');
 
         try {
             // Create user via Supabase Auth with custom user_metadata for role and username
@@ -36,100 +35,104 @@ export default function Register() {
 
             if (signUpError) throw signUpError;
 
-            alert('✅ Registration Successful! You can now log in.');
+            toast.success('Registration successful.', { id: loadingToast });
             router.push('/login');
         } catch (err: unknown) {
-            setError('❌ Registration Failed: ' + ((err as Error).message || 'Something went wrong'));
+            toast.error(((err as Error).message || 'Something went wrong'), { id: loadingToast });
         } finally {
             setIsLoading(false);
         }
     };
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-[#121212] text-white pt-20">
-            <div className="relative w-full max-w-md bg-[#1E1E1E] bg-opacity-80 backdrop-blur-md rounded-2xl shadow-2xl p-10 border border-gray-800">
-
-                {/* Glowing Effect */}
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-blue-500/20 blur-3xl rounded-2xl -z-10"></div>
+        <div className="flex items-center justify-center min-h-screen bg-[#0A0A0A] text-white pt-20 selection:bg-[#00A699] selection:text-white">
+            <div className="w-full max-w-sm bg-[#111] rounded-none p-10 border border-white/10">
 
                 {/* Title */}
-                <h2 className="text-3xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-400 mb-8">Join RentWise 🎉</h2>
-
-                {/* Error Message */}
-                {error && (
-                    <div className="bg-red-500/10 border border-red-500/50 text-red-200 p-4 rounded-lg mb-6 text-sm text-center">
-                        {error}
-                    </div>
-                )}
+                <h2 className="text-sm font-bold tracking-widest text-[#00A699] uppercase mb-8 flex items-center gap-3">
+                    <span className="w-2 h-2 bg-[#00A699] rounded-full animate-pulse"></span>
+                    Create Agent File
+                </h2>
 
                 {/* Registration Form */}
-                <form onSubmit={handleRegister} className="space-y-4 relative z-10">
-                    <input
-                        type="text"
-                        placeholder="Username"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        className="w-full px-5 py-3.5 text-white bg-[#252525] border border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all placeholder-gray-500"
-                        required
-                        disabled={isLoading}
-                    />
-                    <input
-                        type="email"
-                        placeholder="Email Address"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="w-full px-5 py-3.5 text-white bg-[#252525] border border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all placeholder-gray-500"
-                        required
-                        disabled={isLoading}
-                    />
-                    <input
-                        type="password"
-                        placeholder="Password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="w-full px-5 py-3.5 text-white bg-[#252525] border border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all placeholder-gray-500"
-                        required
-                        disabled={isLoading}
-                        minLength={6}
-                    />
+                <form onSubmit={handleRegister} className="space-y-6">
+                    <div className="space-y-5">
+                        <div className="relative">
+                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Registry Name</label>
+                            <input
+                                type="text"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors placeholder-gray-700 font-mono text-sm"
+                                required
+                                disabled={isLoading}
+                                placeholder="J. Doe"
+                            />
+                        </div>
+                        <div className="relative">
+                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Comm Link (Email)</label>
+                            <input
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors placeholder-gray-700 font-mono text-sm"
+                                required
+                                disabled={isLoading}
+                                placeholder="agent@rentwise.com"
+                            />
+                        </div>
+                        <div className="relative">
+                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Security Key</label>
+                            <input
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors placeholder-gray-700 font-mono text-sm"
+                                required
+                                disabled={isLoading}
+                                minLength={6}
+                                placeholder="••••••••"
+                            />
+                        </div>
 
-                    <div className="pt-2">
-                        <label className="block text-sm font-medium text-gray-400 mb-2">I am registering as a:</label>
-                        <select
-                            value={role}
-                            onChange={(e) => setRole(e.target.value)}
-                            className="w-full px-5 py-3.5 text-white bg-[#252525] border border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all cursor-pointer"
-                            disabled={isLoading}
-                        >
-                            <option value="tenant">Tenant (Looking to rent)</option>
-                            <option value="landlord">Landlord (Listing properties)</option>
-                        </select>
+                        <div className="pt-2 relative">
+                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Clearance Level</label>
+                            <select
+                                value={role}
+                                onChange={(e) => setRole(e.target.value)}
+                                className="w-full px-4 py-3 text-white bg-[#111] border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors font-mono text-sm cursor-pointer appearance-none"
+                                disabled={isLoading}
+                            >
+                                <option value="tenant">Tenant (Seeker)</option>
+                                <option value="landlord">Landlord (Provider)</option>
+                            </select>
+                            {/* Custom select arrow since appearance-none removes default */}
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500 top-6">
+                                <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
+                            </div>
+                        </div>
                     </div>
 
                     <button
                         type="submit"
-                        className="w-full py-3.5 mt-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-[0_0_20px_#9333ea4d] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group"
+                        className="w-full py-4 bg-white text-black font-bold text-xs uppercase tracking-widest transition-all duration-300 hover:bg-[#00A699] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed mt-4"
                         disabled={isLoading}
                     >
                         {isLoading ? (
-                            <div className="flex items-center justify-center">
-                                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                Creating Account...
-                            </div>
-                        ) : "Create Account"}
+                            <span className="animate-pulse">Constructing...</span>
+                        ) : "Initialize Record"}
                     </button>
                 </form>
 
                 {/* Login Redirect */}
-                <p className="text-center text-gray-400 mt-8 text-sm">
-                    Already have an account?
-                    <Link href="/login" className="text-purple-400 hover:text-purple-300 hover:underline ml-1 font-medium transition-colors">
-                        Log in existing
-                    </Link>
-                </p>
+                <div className="mt-8 pt-6 border-t border-white/10">
+                    <p className="text-left text-gray-500 text-[10px] uppercase font-bold tracking-widest">
+                        Existing Agent?
+                        <Link href="/login" className="text-white hover:text-[#00A699] ml-2 transition-colors">
+                            Authenticate
+                        </Link>
+                    </p>
+                </div>
             </div>
         </div>
     );

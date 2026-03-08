@@ -4,12 +4,12 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
+import toast from 'react-hot-toast';
 
 export default function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState('');
     const router = useRouter();
     const supabase = createClient();
 
@@ -31,7 +31,7 @@ export default function Login() {
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        setError('');
+        const loadingToast = toast.loading('Authenticating...');
 
         try {
             const { data, error } = await supabase.auth.signInWithPassword({
@@ -47,6 +47,7 @@ export default function Login() {
             router.refresh();
 
             const role = data.user.user_metadata?.role;
+            toast.success('Welcome back.', { id: loadingToast });
             if (role === 'landlord') {
                 router.push('/dashboard');
             } else {
@@ -54,87 +55,73 @@ export default function Login() {
             }
 
         } catch (err: unknown) {
-            setError('Login failed: ' + ((err as Error).message || 'Invalid credentials'));
+            toast.error(((err as Error).message || 'Invalid credentials'), { id: loadingToast });
         } finally {
             setIsLoading(false);
         }
     };
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-[#121212] text-white pt-20">
-            <div className="relative w-full max-w-md bg-[#1E1E1E] bg-opacity-80 backdrop-blur-md rounded-2xl shadow-2xl p-10 border border-gray-800">
-
-                {/* Glowing Effect */}
-                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/20 to-blue-500/20 blur-3xl rounded-2xl -z-10"></div>
+        <div className="flex items-center justify-center min-h-screen bg-[#0A0A0A] text-white pt-20 selection:bg-[#FF385C] selection:text-white">
+            <div className="w-full max-w-sm bg-[#111] rounded-none p-10 border border-white/10">
 
                 {/* Title */}
-                <h2 className="text-3xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 mb-8">Welcome Back 👋</h2>
-
-                {/* Error Message */}
-                {error && (
-                    <div className="bg-red-500/10 border border-red-500/50 text-red-200 p-4 rounded-lg mb-6 text-sm text-center">
-                        {error}
-                    </div>
-                )}
+                <h2 className="text-sm font-bold tracking-widest text-[#FF385C] uppercase mb-8 flex items-center gap-3">
+                    <span className="w-2 h-2 bg-[#FF385C] rounded-full animate-pulse"></span>
+                    Terminal Access
+                </h2>
 
                 {/* Login Form */}
-                <form onSubmit={handleLogin} className="space-y-6 relative z-10">
-                    <div className="space-y-4">
+                <form onSubmit={handleLogin} className="space-y-6">
+                    <div className="space-y-5">
                         <div className="relative">
+                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Email Address</label>
                             <input
                                 type="email"
-                                placeholder="Email Address"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                className="w-full px-5 py-3.5 text-white bg-[#252525] border border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all placeholder-gray-500"
+                                className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors placeholder-gray-700 font-mono text-sm"
                                 required
                                 disabled={isLoading}
+                                placeholder="sys.admin@rentwise.com"
                             />
                         </div>
                         <div className="relative">
+                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Security Key</label>
                             <input
                                 type="password"
-                                placeholder="Password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-5 py-3.5 text-white bg-[#252525] border border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all placeholder-gray-500"
+                                className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors placeholder-gray-700 font-mono text-sm"
                                 required
                                 disabled={isLoading}
+                                placeholder="••••••••"
                             />
                         </div>
                     </div>
 
                     <button
                         type="submit"
-                        className="w-full py-3.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold rounded-xl shadow-[0_0_20px_#06b6d44d] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group"
+                        className="w-full py-4 bg-white text-black font-bold text-xs uppercase tracking-widest transition-all duration-300 hover:bg-[#FF385C] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed mt-4"
                         disabled={isLoading}
                     >
                         {isLoading ? (
-                            <div className="flex items-center justify-center">
-                                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                Authenticating...
-                            </div>
+                            <span className="animate-pulse">Authenticating...</span>
                         ) : (
-                            <span className="flex items-center justify-center">
-                                Sign In
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2 transform group-hover:translate-x-1 transition-transform" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                                </svg>
-                            </span>
+                            "Initialize Session"
                         )}
                     </button>
                 </form>
 
                 {/* Register Link */}
-                <p className="text-center text-gray-400 mt-8 text-sm">
-                    Don&apos;t have an account?
-                    <Link href="/register" className="text-cyan-400 hover:text-cyan-300 hover:underline ml-1 font-medium transition-colors">
-                        Create one now
-                    </Link>
-                </p>
+                <div className="mt-8 pt-6 border-t border-white/10">
+                    <p className="text-left text-gray-500 text-[10px] uppercase font-bold tracking-widest">
+                        Unregistered Agent?
+                        <Link href="/register" className="text-white hover:text-[#00A699] ml-2 transition-colors">
+                            Request Credentials
+                        </Link>
+                    </p>
+                </div>
             </div>
         </div>
     );

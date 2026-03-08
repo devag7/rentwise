@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import PropertyCard, { Property } from '@/components/PropertyCard';
+import toast from 'react-hot-toast';
 
 export default function Dashboard() {
     const router = useRouter();
@@ -83,12 +84,12 @@ export default function Dashboard() {
         const file = e.target.files?.[0];
         if (file) {
             if (file.size > 500 * 1024) {
-                alert('Image size must be less than 500KB');
+                toast.error('Image size must be less than 500KB');
                 e.target.value = '';
                 return;
             }
             if (!file.type.match(/image\/(jpeg|jpg|png)/)) {
-                alert('Only JPG/PNG images are allowed');
+                toast.error('Only JPG/PNG images are allowed');
                 e.target.value = '';
                 return;
             }
@@ -108,6 +109,7 @@ export default function Dashboard() {
         if (!userId) return;
 
         setIsLoading(true);
+        const loadingToast = toast.loading('Publishing Listing...');
 
         try {
             let base64Image = null;
@@ -133,7 +135,7 @@ export default function Dashboard() {
 
             if (error) throw error;
 
-            alert('Property added successfully!');
+            toast.success('Property added successfully.', { id: loadingToast });
 
             setFormData({
                 area_id: '',
@@ -152,14 +154,14 @@ export default function Dashboard() {
             fetchMyProperties(userId);
 
         } catch (err: unknown) {
-            alert('Failed to add property: ' + ((err as Error).message || 'Something went wrong'));
+            toast.error(((err as Error).message || 'Something went wrong'), { id: loadingToast });
         } finally {
             setIsLoading(false);
         }
     };
 
     const handleDelete = async (property_id: number) => {
-        if (!confirm('Are you sure you want to delete this property?')) return;
+        if (!confirm('Confirm deletion of this property listing.')) return;
 
         try {
             const { error } = await supabase
@@ -169,151 +171,163 @@ export default function Dashboard() {
 
             if (error) throw error;
 
-            alert('Property deleted.');
+            toast.success('Property deleted.');
             if (userId) fetchMyProperties(userId);
         } catch (err: unknown) {
-            alert('Failed to delete property: ' + ((err as Error).message || 'Something went wrong'));
+            toast.error(((err as Error).message || 'Something went wrong'));
         }
     };
 
     if (!userId) return null;
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-28 pb-20 px-4 md:px-6 transition-colors duration-300">
+        <div className="min-h-screen bg-[#0A0A0A] text-white pt-28 pb-20 px-4 md:px-6 transition-colors duration-300 selection:bg-[#00A699] selection:text-white">
             <div className="max-w-6xl mx-auto space-y-12">
 
                 {/* Form Section */}
-                <div className="w-full max-w-3xl mx-auto bg-white dark:bg-[#1E1E1E] rounded-3xl shadow-xl border border-gray-100 dark:border-gray-800 p-6 md:p-10">
-                    <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white mb-2">Landlord Dashboard</h2>
-                    <p className="text-gray-500 dark:text-gray-400 mb-8">List a new property for rent</p>
+                <div className="w-full max-w-3xl mx-auto bg-[#111] border border-white/10 rounded-none p-6 md:p-10 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-[#FF385C]/10 blur-[50px] pointer-events-none rounded-full" />
+                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-[#00A699]/10 blur-[50px] pointer-events-none rounded-full" />
 
-                    <form onSubmit={handleSubmit} className="space-y-6">
+                    <h2 className="text-2xl font-bold text-white mb-2 flex items-center gap-3">
+                        <span className="w-2 h-2 bg-[#FF385C] rounded-full animate-pulse"></span>
+                        <span className="uppercase tracking-widest text-[#FF385C]">Terminal Upload</span>
+                    </h2>
+                    <p className="text-gray-500 font-mono text-xs uppercase tracking-widest mb-8 border-b border-white/10 pb-4">Initialize New Property Record</p>
+
+                    <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="flex flex-col">
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Area</label>
+                            <div className="flex flex-col relative">
+                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Sector / Zone</label>
                                 <select
                                     name="area_id"
                                     value={formData.area_id}
                                     onChange={handleChange}
-                                    className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl p-3 focus:ring-2 focus:ring-blue-500 transition-all outline-none"
+                                    className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors font-mono text-sm cursor-pointer appearance-none"
                                     required
                                 >
-                                    <option value="">Select Area</option>
+                                    <option value="" className="bg-[#111]">Select Sector</option>
                                     {areas.map(area => (
-                                        <option key={area.area_id} value={area.area_id}>{area.area_name}</option>
+                                        <option key={area.area_id} value={area.area_id} className="bg-[#111]">{area.area_name}</option>
                                     ))}
                                 </select>
+                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500 top-6">
+                                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
+                                </div>
                             </div>
 
-                            <div className="flex flex-col">
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Property Type</label>
+                            <div className="flex flex-col relative">
+                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Layout Typology</label>
                                 <select
                                     name="property_type"
                                     value={formData.property_type}
                                     onChange={handleChange}
-                                    className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl p-3 focus:ring-2 focus:ring-blue-500 transition-all outline-none"
+                                    className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors font-mono text-sm cursor-pointer appearance-none"
                                     required
                                 >
-                                    <option value="1BHK">1BHK</option>
-                                    <option value="2BHK">2BHK</option>
-                                    <option value="3BHK">3BHK</option>
-                                    <option value="1RK">1RK</option>
-                                    <option value="PG">PG</option>
+                                    <option value="1BHK" className="bg-[#111]">1 Bedroom (1BHK)</option>
+                                    <option value="2BHK" className="bg-[#111]">2 Bedroom (2BHK)</option>
+                                    <option value="3BHK" className="bg-[#111]">3 Bedroom (3BHK)</option>
+                                    <option value="1RK" className="bg-[#111]">Studio (1RK)</option>
+                                    <option value="PG" className="bg-[#111]">Shared Space (PG)</option>
                                 </select>
+                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500 top-6">
+                                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
+                                </div>
                             </div>
                         </div>
 
                         <div className="flex flex-col">
-                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Address</label>
+                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Physical Address Coordinates</label>
                             <input
                                 name="address"
                                 value={formData.address}
                                 onChange={handleChange}
-                                placeholder="Full property address"
-                                className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl p-3 focus:ring-2 focus:ring-blue-500 transition-all outline-none"
+                                placeholder="Full designation..."
+                                className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors placeholder-gray-700 font-mono text-sm"
                                 required
                             />
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="flex flex-col">
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Size (sq ft)</label>
+                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Area (SQ FT)</label>
                                 <input
                                     name="size"
                                     type="number"
                                     value={formData.size}
                                     onChange={handleChange}
-                                    placeholder="e.g. 800"
-                                    className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl p-3 focus:ring-2 focus:ring-blue-500 transition-all outline-none"
+                                    placeholder="000"
+                                    className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors placeholder-gray-700 font-mono text-sm"
                                     required
                                 />
                             </div>
 
                             <div className="flex flex-col">
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Monthly Rent (₹)</label>
+                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Valuation (₹)</label>
                                 <input
                                     name="rent"
                                     type="number"
                                     value={formData.rent}
                                     onChange={handleChange}
-                                    placeholder="e.g. 15000"
-                                    className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl p-3 focus:ring-2 focus:ring-blue-500 transition-all outline-none"
+                                    placeholder="00000"
+                                    className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#FF385C] transition-colors placeholder-gray-700 font-mono text-sm"
                                     required
                                 />
                             </div>
                         </div>
 
                         <div className="flex flex-col">
-                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tenant Preferences</label>
+                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Occupant Protocols</label>
                             <input
                                 name="preferences"
                                 value={formData.preferences}
                                 onChange={handleChange}
-                                placeholder="e.g. Family preferred, no pets"
-                                className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl p-3 focus:ring-2 focus:ring-blue-500 transition-all outline-none"
+                                placeholder="E.g., No syntax errors, pure logic expected."
+                                className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors placeholder-gray-700 font-mono text-sm"
                             />
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="flex flex-col">
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Contact Number</label>
+                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Comm Link (Phone)</label>
                                 <input
                                     name="landlord_phone"
                                     value={formData.landlord_phone}
                                     onChange={handleChange}
-                                    placeholder="+91..."
-                                    className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl p-3 focus:ring-2 focus:ring-blue-500 transition-all outline-none"
+                                    placeholder="+91 XXXXX XXXXX"
+                                    className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors placeholder-gray-700 font-mono text-sm"
                                 />
                             </div>
                             <div className="flex flex-col">
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Google Maps Link</label>
+                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Map Vector</label>
                                 <input
                                     name="google_maps_link"
                                     value={formData.google_maps_link}
                                     onChange={handleChange}
-                                    placeholder="https://maps.google.com/..."
-                                    className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl p-3 focus:ring-2 focus:ring-blue-500 transition-all outline-none"
+                                    placeholder="https://maps..."
+                                    className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors placeholder-gray-700 font-mono text-sm"
                                 />
                             </div>
                         </div>
 
                         <div className="pt-2">
-                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">Property Photo (Max 500KB)</label>
+                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Visual Feed (MAX 500KB JPEG/PNG)</label>
                             <div className="flex items-center gap-4">
-                                <label className="cursor-pointer inline-flex items-center px-4 py-2 bg-blue-50 text-blue-700 dark:bg-gray-800 dark:text-blue-400 border border-blue-200 dark:border-gray-700 rounded-lg hover:bg-blue-100 dark:hover:bg-gray-700 transition-colors font-medium text-sm">
-                                    Choose Image
+                                <label className="cursor-pointer inline-flex items-center px-4 py-3 bg-white/5 border border-white/20 hover:bg-white/10 text-white transition-colors font-mono uppercase tracking-widest text-[10px] font-bold">
+                                    Capture Matrix
                                     <input type="file" accept="image/jpeg, image/png" onChange={handleImageChange} className="hidden" />
                                 </label>
-                                <span className="text-xs text-gray-500">{imageFile ? imageFile.name : "No file chosen"}</span>
+                                <span className="text-xs text-gray-500 font-mono">{imageFile ? imageFile.name : "[AWAITING DATA PING]"}</span>
                             </div>
 
                             {imagePreview && (
-                                <div className="mt-4 relative w-full max-w-sm h-48 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm">
-                                    <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                                <div className="mt-4 relative w-full max-w-sm h-48 overflow-hidden border border-white/20 rounded-none shadow-sm">
+                                    <img src={imagePreview} alt="Preview" className="w-full h-full object-cover grayscale opacity-90 contrast-125 hover:grayscale-0 transition-all duration-700" />
                                     <button
                                         type="button"
                                         onClick={() => { setImageFile(null); setImagePreview(null); }}
-                                        className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                                        className="absolute top-2 right-2 p-1.5 bg-black/80 text-white hover:text-[#FF385C] border border-white/20 transition-colors"
                                         aria-label="Remove image"
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -324,13 +338,13 @@ export default function Dashboard() {
                             )}
                         </div>
 
-                        <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
+                        <div className="pt-8">
                             <button
                                 type="submit"
-                                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-500/30 transition-all flex justify-center items-center"
+                                className="w-full py-4 bg-white text-black font-bold text-xs uppercase tracking-widest transition-all duration-300 hover:bg-[#FF385C] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                                 disabled={isLoading}
                             >
-                                {isLoading ? "Publishing Listing..." : "Publish Listing"}
+                                {isLoading ? <span className="animate-pulse">Uploading to Matrix...</span> : "Execute Transmission"}
                             </button>
                         </div>
                     </form>
@@ -338,34 +352,39 @@ export default function Dashboard() {
 
                 {/* User Properties Section */}
                 <div className="w-full mx-auto">
-                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">My Listed Properties</h3>
+                    <h3 className="text-sm font-bold text-[#00A699] uppercase tracking-widest mb-6 flex items-center gap-3">
+                        <span className="w-2 h-2 bg-[#00A699] rounded-full animate-pulse"></span>
+                        Active Records
+                    </h3>
 
-                    {isFetchingProperties ? (
-                        <div className="flex justify-center p-12">
-                            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-                        </div>
-                    ) : myProperties.length === 0 ? (
-                        <div className="text-center py-16 bg-white dark:bg-[#1E1E1E] rounded-3xl border border-gray-100 dark:border-gray-800">
-                            <p className="text-gray-500 dark:text-gray-400">You haven't listed any properties yet.</p>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                            {myProperties.map(property => (
-                                <div key={property.property_id} className="relative group">
-                                    <PropertyCard property={property} />
-                                    <button
-                                        onClick={() => handleDelete(property.property_id)}
-                                        className="absolute top-4 left-4 z-20 bg-red-500/90 hover:bg-red-600 text-white p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                                        title="Delete Listing"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                                        </svg>
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                    <div className="border border-white/10 bg-[#111] p-6 rounded-none relative overflow-hidden">
+                        {isFetchingProperties ? (
+                            <div className="flex justify-center p-12">
+                                <div className="animate-spin rounded-none h-8 w-8 border-t-2 border-b-2 border-white"></div>
+                            </div>
+                        ) : myProperties.length === 0 ? (
+                            <div className="text-center py-16">
+                                <p className="text-gray-500 font-mono text-xs uppercase tracking-widest">No active property nodes discovered within your sector.</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                {myProperties.map(property => (
+                                    <div key={property.property_id} className="relative group">
+                                        <PropertyCard property={property} />
+                                        <button
+                                            onClick={() => handleDelete(property.property_id)}
+                                            className="absolute top-4 left-4 z-20 bg-black/80 border border-white/20 hover:border-[#FF385C] hover:text-[#FF385C] text-white p-2 rounded-none shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-300"
+                                            title="Purge Record"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
             </div>
