@@ -16,6 +16,7 @@ export default function Properties() {
         furnishing_status: '',
         parking: false,
         sort_by: 'newest',
+        source: '',
     });
     const [isLoading, setIsLoading] = useState(true);
     const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
@@ -36,6 +37,7 @@ export default function Properties() {
             if (filters.max_rent) query = query.lte('rent', filters.max_rent);
             if (filters.furnishing_status) query = query.eq('furnishing_status', filters.furnishing_status);
             if (filters.parking) query = query.eq('parking', true);
+            if (filters.source) query = query.eq('source', filters.source);
 
             // Sorting logic
             if (filters.sort_by === 'price_asc') {

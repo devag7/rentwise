@@ -10,6 +10,7 @@ export interface FilterState {
     furnishing_status: string;
     parking: boolean;
     sort_by: string;
+    source: string;
 }
 
 interface FilterBarProps {
@@ -25,6 +26,7 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
         furnishing_status: "",
         parking: false,
         sort_by: "newest",
+        source: "",
     });
 
     const handleChange = (e: ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
@@ -108,7 +110,21 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
                 </div>
 
                 {/* Advanced Filters */}
-                <div className="col-span-1 md:col-span-2 lg:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-6 pt-2 lg:pt-0">
+                <div className="col-span-1 md:col-span-2 lg:col-span-2 grid grid-cols-1 sm:grid-cols-4 gap-6 pt-2 lg:pt-0">
+
+                    <div className="relative">
+                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 block">Source</span>
+                        <select
+                            name="source"
+                            value={filters.source}
+                            onChange={handleChange}
+                            className="w-full bg-transparent text-white border-b border-gray-800 pb-2 focus:outline-none focus:border-[#00A699] transition-colors duration-300 text-sm font-medium appearance-none cursor-pointer"
+                        >
+                            <option value="" className="bg-[#111]">All Sources</option>
+                            <option value="platform" className="bg-[#111]">✅ Verified Only</option>
+                            <option value="scraped" className="bg-[#111]">🌐 External Only</option>
+                        </select>
+                    </div>
 
                     <div className="relative">
                         <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 block">Furnishing</span>

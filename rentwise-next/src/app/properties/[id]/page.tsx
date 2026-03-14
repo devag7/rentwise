@@ -75,6 +75,17 @@ export default async function PropertyDetails({ params }: { params: Promise<{ id
                             <span className="px-3 py-1.5 bg-black text-white border border-white/20 text-[10px] font-bold tracking-widest uppercase">
                                 {formattedProperty.property_type}
                             </span>
+                            {formattedProperty.source === 'scraped' ? (
+                                <span className="px-3 py-1.5 bg-amber-500/20 text-amber-400 border border-amber-500/40 text-[10px] font-bold tracking-widest uppercase flex items-center gap-1">
+                                    <span className="w-1.5 h-1.5 bg-amber-400 rounded-full"></span>
+                                    EXTERNAL LISTING
+                                </span>
+                            ) : (
+                                <span className="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-bold tracking-widest uppercase flex items-center gap-1">
+                                    <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>
+                                    VERIFIED
+                                </span>
+                            )}
                             <span className="flex items-center text-gray-500 text-[10px] font-bold tracking-widest uppercase">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -182,15 +193,23 @@ export default async function PropertyDetails({ params }: { params: Promise<{ id
                         predictedPrice={predictedPrice}
                         isGoodDeal={isGoodDeal}
                         differencePercent={differencePercent}
+                        source={formattedProperty.source}
+                        source_url={formattedProperty.source_url}
+                        contact_name={formattedProperty.contact_name}
+                        contact_phone={formattedProperty.contact_phone}
                     />
 
-                    <div className="mt-8">
-                        <TourScheduler propertyId={formattedProperty.property_id} />
-                    </div>
+                    {formattedProperty.source !== 'scraped' && (
+                        <div className="mt-8">
+                            <TourScheduler propertyId={formattedProperty.property_id} />
+                        </div>
+                    )}
 
-                    <div>
-                        <CommuteAnalyzer propertyArea={formattedProperty.area_name} />
-                    </div>
+                    {formattedProperty.source !== 'scraped' && (
+                        <div>
+                            <CommuteAnalyzer propertyArea={formattedProperty.area_name} />
+                        </div>
+                    )}
 
                     <div>
                         <AffordabilityCalculator monthlyRent={formattedProperty.rent} />

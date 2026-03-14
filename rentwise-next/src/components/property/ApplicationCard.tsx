@@ -12,9 +12,13 @@ interface Props {
     predictedPrice: number;
     isGoodDeal: boolean;
     differencePercent: string;
+    source?: string;
+    source_url?: string;
+    contact_name?: string;
+    contact_phone?: string;
 }
 
-export default function ApplicationCard({ property_id, landlord_id, rent, landlord_phone, predictedPrice, isGoodDeal, differencePercent }: Props) {
+export default function ApplicationCard({ property_id, landlord_id, rent, landlord_phone, predictedPrice, isGoodDeal, differencePercent, source, source_url, contact_name, contact_phone }: Props) {
     const supabase = createClient();
     const [userId, setUserId] = useState<string | null>(null);
     const [userRole, setUserRole] = useState<string | null>(null);
@@ -148,7 +152,41 @@ export default function ApplicationCard({ property_id, landlord_id, rent, landlo
 
             {/* Action Area */}
             <div className="flex flex-col gap-3">
-                {userRole === 'landlord' ? (
+                {source === 'scraped' ? (
+                    <>
+                        {/* External listing — no Apply/Message */}
+                        <div className="w-full py-4 px-4 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-center">
+                            <p className="text-[10px] font-bold uppercase tracking-widest mb-1">External Listing</p>
+                            <p className="text-[9px] font-mono text-amber-500/70 uppercase tracking-wider">Booking unavailable — not registered on platform</p>
+                        </div>
+                        {source_url && (
+                            <a
+                                href={source_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-full py-4 px-4 bg-white text-black font-bold text-xs uppercase tracking-widest text-center transition-all duration-300 hover:bg-amber-500 hover:text-white inline-block"
+                            >
+                                View Original Listing →
+                            </a>
+                        )}
+                        {/* Contact info — gated behind auth */}
+                        {userId ? (
+                            <div className="mt-2 p-4 bg-[#0A0A0A] border border-white/5">
+                                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Contact Information</p>
+                                {contact_name && <p className="text-sm font-medium text-white">{contact_name}</p>}
+                                {contact_phone && <p className="text-xs font-mono text-gray-400 mt-1">{contact_phone}</p>}
+                                {landlord_phone && <p className="text-xs font-mono text-gray-400 mt-1">{landlord_phone}</p>}
+                            </div>
+                        ) : (
+                            <div className="mt-2 p-4 bg-[#0A0A0A] border border-white/5 text-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Login to view contact details</p>
+                            </div>
+                        )}
+                    </>
+                ) : userRole === 'landlord' ? (
                     <button disabled className="w-full py-5 px-4 bg-white/5 text-gray-500 font-bold text-xs uppercase tracking-widest cursor-not-allowed border border-white/10">
                         Admin Restricted Action
                     </button>
@@ -169,9 +207,15 @@ export default function ApplicationCard({ property_id, landlord_id, rent, landlo
                     </>
                 )}
 
-                {landlord_phone && (
+                {/* Contact info for platform listings — gated behind auth */}
+                {source !== 'scraped' && userId && landlord_phone && (
                     <p className="text-center text-[10px] font-mono font-medium text-gray-500 uppercase tracking-widest mt-2">
                         Direct Line / Support: {landlord_phone}
+                    </p>
+                )}
+                {source !== 'scraped' && !userId && landlord_phone && (
+                    <p className="text-center text-[10px] font-mono font-medium text-gray-600 uppercase tracking-widest mt-2">
+                        🔒 Login to view contact info
                     </p>
                 )}
             </div>

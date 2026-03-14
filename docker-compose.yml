@@ -12,16 +12,15 @@ services:
     container_name: rentwise_next_app
     restart: always
     ports:
-      # Map container port 3000 to droplet port 3009 exactly as requested
       - "3009:3000"
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
       - NEXT_PUBLIC_MAPBOX_TOKEN=${NEXT_PUBLIC_MAPBOX_TOKEN}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
     deploy:
       resources:
         limits:
-          cpus: '0.8' # Use up to 80% of the 1 CPU
-          memory: 800M # Keep memory footprint strictly under 800MB out of the 2GB droplet limit
-    # Network mode host ensures it doesn't conflict easily with arbitrary virtual network subnets
+          cpus: '0.8'
+          memory: 800M

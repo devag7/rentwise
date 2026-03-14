@@ -18,6 +18,13 @@ export interface Property {
     furnishing_status?: string;
     longitude?: number;
     latitude?: number;
+    source?: string;
+    source_url?: string;
+    contact_name?: string;
+    contact_phone?: string;
+    scraped_at?: string;
+    external_id?: string;
+    description?: string;
 }
 
 // Pseudo AI Algorithm: Predicts a fair price based on the area's base rate and flat size.
@@ -107,6 +114,21 @@ export default function PropertyCard({ property }: { property: Property }) {
 
     return (
         <div className="group bg-white dark:bg-[#0A0A0A] rounded-none border border-gray-200 dark:border-white/10 overflow-hidden transform transition-all duration-500 hover:border-gray-900 dark:hover:border-white/30 flex flex-col h-full shadow-sm relative">
+
+            {/* Source Badge */}
+            <div className="absolute top-4 left-4 z-20">
+                {property.source === 'scraped' ? (
+                    <span className="px-2.5 py-1 bg-amber-500/90 backdrop-blur-md text-white text-[9px] font-bold tracking-widest uppercase border border-amber-400/50 flex items-center gap-1">
+                        <span className="w-1 h-1 bg-white rounded-full"></span>
+                        EXTERNAL
+                    </span>
+                ) : (
+                    <span className="px-2.5 py-1 bg-emerald-500/90 backdrop-blur-md text-white text-[9px] font-bold tracking-widest uppercase border border-emerald-400/50 flex items-center gap-1">
+                        <span className="w-1 h-1 bg-white rounded-full"></span>
+                        VERIFIED
+                    </span>
+                )}
+            </div>
 
             {/* Save Button */}
             <button
