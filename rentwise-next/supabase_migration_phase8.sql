@@ -12,8 +12,10 @@ ALTER TABLE public.properties ADD COLUMN IF NOT EXISTS external_id TEXT;
 -- Create unique index for deduplication of scraped listings
 CREATE UNIQUE INDEX IF NOT EXISTS idx_properties_external_id ON public.properties (external_id) WHERE external_id IS NOT NULL;
 
--- 2. EXPAND AREAS TABLE TO COVER ALL OF BANGALORE (40+ localities)
--- Using ON CONFLICT to avoid duplicates if areas already exist
+-- 2. ADD UNIQUE CONSTRAINT ON AREAS NAME (needed for ON CONFLICT)
+ALTER TABLE public.areas ADD CONSTRAINT areas_name_unique UNIQUE (name);
+
+-- 3. EXPAND AREAS TABLE TO COVER ALL OF BANGALORE (50 localities)
 INSERT INTO public.areas (name) VALUES
   ('Indiranagar'), ('Koramangala'), ('Whitefield'), ('HSR Layout'),
   ('Marathahalli'), ('Bellandur'), ('Jayanagar'), ('BTM Layout'),
@@ -29,7 +31,3 @@ INSERT INTO public.areas (name) VALUES
   ('Frazer Town'), ('RT Nagar'), ('Kammanahalli'), ('Kalyan Nagar'),
   ('Banaswadi'), ('Ramamurthy Nagar')
 ON CONFLICT (name) DO NOTHING;
-
--- 3. UPDATE RLS: Allow service role to insert scraped properties
--- The scraper uses the service_role key which bypasses RLS automatically,
--- so no additional policies needed.
