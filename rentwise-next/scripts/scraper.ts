@@ -200,7 +200,7 @@ async function insertListings(listings: ScrapedProperty[]): Promise<number> {
         
         const { error } = await supabase
             .from('properties')
-            .upsert({
+            .insert({
                 area_id: areaId,
                 address: listing.address,
                 property_type: listing.property_type,
@@ -216,10 +216,7 @@ async function insertListings(listings: ScrapedProperty[]): Promise<number> {
                 contact_phone: listing.contact_phone,
                 external_id: listing.external_id,
                 scraped_at: listing.scraped_at,
-                landlord_id: null, // No landlord for scraped listings
-            }, {
-                onConflict: 'external_id',
-                ignoreDuplicates: true,
+                landlord_id: null,
             });
         
         if (error) {
