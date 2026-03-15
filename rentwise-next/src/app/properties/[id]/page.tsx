@@ -64,7 +64,7 @@ export default async function PropertyDetails({ params }: { params: Promise<{ id
 
     return (
         <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col items-center pb-20 pt-32 px-6 selection:bg-[#FF385C] selection:text-white">
-            <div className="relative max-w-5xl w-full bg-[#111] rounded-none shadow-2xl p-0 md:p-12 border border-white/10 flex flex-col md:flex-row gap-12">
+            <div className="relative max-w-5xl w-full bg-[#111] rounded-none shadow-2xl p-0 md:p-12 border border-white/10 flex flex-col md:flex-row gap-12 md:items-start">
 
                 {/* Left Column: Image & Details */}
                 <div className="flex-1 w-full flex flex-col gap-10">
@@ -183,8 +183,8 @@ export default async function PropertyDetails({ params }: { params: Promise<{ id
                     <InteractiveMediaLinks google_maps_link={formattedProperty.google_maps_link} />
                 </div>
 
-                {/* Right Column: Pricing & Action */}
-                <div className="w-full md:w-[400px]">
+                {/* Right Column: Pricing & Action — sticky on desktop */}
+                <div className="w-full md:w-[400px] md:sticky md:top-32 md:self-start space-y-6">
                     <ApplicationCard
                         property_id={formattedProperty.property_id}
                         landlord_id={formattedProperty.landlord_id}
@@ -199,21 +199,11 @@ export default async function PropertyDetails({ params }: { params: Promise<{ id
                         contact_phone={formattedProperty.contact_phone}
                     />
 
-                    {formattedProperty.source !== 'scraped' && (
-                        <div className="mt-8">
-                            <TourScheduler propertyId={formattedProperty.property_id} />
-                        </div>
-                    )}
+                    <TourScheduler propertyId={formattedProperty.property_id} />
 
-                    {formattedProperty.source !== 'scraped' && (
-                        <div>
-                            <CommuteAnalyzer propertyArea={formattedProperty.area_name} />
-                        </div>
-                    )}
+                    <CommuteAnalyzer propertyArea={formattedProperty.area_name} />
 
-                    <div>
-                        <AffordabilityCalculator monthlyRent={formattedProperty.rent} />
-                    </div>
+                    <AffordabilityCalculator monthlyRent={formattedProperty.rent} />
                 </div>
             </div>
 

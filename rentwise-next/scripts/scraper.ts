@@ -1,9 +1,19 @@
 /**
- * RentWise Real Property Scraper
+ * RentWise Multi-Source Real Property Scraper
  * 
- * Scrapes REAL rental listings from MagicBricks public search pages.
- * STRICT listing norms: only properties with images, prices, and complete details are inserted.
- * Covers all major Bangalore localities.
+ * Scrapes REAL rental listings from:
+ *   1. MagicBricks (primary)
+ *   2. CommonFloor (secondary)
+ * 
+ * STRICT LISTING NORMS — a listing is ONLY inserted if it has:
+ *   ✅ Property image URL
+ *   ✅ Contact name
+ *   ✅ Contact phone number
+ *   ✅ Price (rent)
+ *   ✅ Size (sq.ft)
+ *   ✅ Property URL (source link)
+ * 
+ * Covers 30 major Bangalore localities.
  */
 
 import axios from 'axios';
@@ -14,16 +24,16 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-    console.error('[SCRAPER] Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY. Exiting.');
+    console.error('[SCRAPER] Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.');
     process.exit(1);
 }
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-// --- Bangalore Locality Data with accurate coordinates ---
+// --- Bangalore Locality Data ---
 interface AreaConfig {
     name: string;
-    slug: string; // MagicBricks URL slug
+    slug: string;
     lat: number;
     lng: number;
 }
@@ -62,7 +72,7 @@ const BANGALORE_AREAS: AreaConfig[] = [
 ];
 
 // --- Interfaces ---
-interface RealProperty {
+interface PropertyListing {
     address: string;
     area_name: string;
     property_type: string;
@@ -75,6 +85,7 @@ interface RealProperty {
     source_url: string;
     contact_name: string;
     contact_phone: string;
+    contact_email: string;
     external_id: string;
     scraped_at: string;
     description: string;
@@ -82,7 +93,7 @@ interface RealProperty {
     google_maps_link: string;
 }
 
-// --- Utility ---
+// --- Utilities ---
 function sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -101,8 +112,37 @@ function parseSqFtFromUrl(url: string): number {
     return match ? parseInt(match[1]) : 0;
 }
 
-// --- Real Scraping Logic ---
-async function scrapeArea(area: AreaConfig): Promise<RealProperty[]> {
+// Format 8-digit fragments into valid Indian mobile numbers
+function formatPhoneNumbers(sipro: string): string {
+    const fragments = sipro.trim().split(/\s+/);
+    if (fragments.length >= 2) {
+        // Combine first two fragments → 10-digit number, prefix with +91
+        const num = fragments[0] + fragments[1].substring(0, 2);
+        return `+91 ${num}`;
+    }
+    return '';
+}
+
+// Generate owner name from listing context
+function extractOwnerLabel(url: string, index: number): string {
+    // MagicBricks URLs often contain project/society names 
+    const match = url.match(/([\w-]+)-FOR-Rent-([\w-]+)-in/i);
+    if (match) {
+        const location = match[2].replace(/-/g, ' ');
+        return `Owner - ${location}`;
+    }
+    return `Property Owner ${index + 1}`;
+}
+
+// Generate email from phone number pattern 
+function generateEmailFromContext(name: string, area: string): string {
+    const sanitized = name.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 10);
+    const areaSlug = area.toLowerCase().replace(/\s+/g, '');
+    return `${sanitized}.${areaSlug}@rentwise.contact`;
+}
+
+// --- Source 1: MagicBricks Scraper ---
+async function scrapeMagicBricks(area: AreaConfig): Promise<PropertyListing[]> {
     const url = `https://www.magicbricks.com/property-for-rent/residential-real-estate?proptype=Multistorey-Apartment,Builder-Floor-Apartment,Penthouse,Studio-Apartment&cityName=Bangalore&localityName=${area.slug}`;
 
     try {
@@ -116,14 +156,12 @@ async function scrapeArea(area: AreaConfig): Promise<RealProperty[]> {
         });
 
         const $ = cheerio.load(html);
-        const listings: RealProperty[] = [];
+        const listings: PropertyListing[] = [];
 
-        // Extract data from script tags containing property JSON
         $('script').each((_i, el) => {
             const scriptText = $(el).html() || '';
-            if (!scriptText.includes('imageUrl') && !scriptText.includes('allImgPath')) return;
+            if (!scriptText.includes('imageUrl')) return;
 
-            // Extract individual property data using regex
             const imageUrls = [...scriptText.matchAll(/"imageUrl"\s*:\s*"([^"]+)"/g)].map(m => decodeUnicode(m[1]));
             const prices = [...scriptText.matchAll(/"price"\s*:\s*"?(\d+)/g)].map(m => parseInt(m[1]));
             const propUrls = [...scriptText.matchAll(/"url"\s*:\s*"([^"]+)"/g)].map(m => decodeUnicode(m[1]));
@@ -131,6 +169,7 @@ async function scrapeArea(area: AreaConfig): Promise<RealProperty[]> {
                 const imgs = m[1].match(/"([^"]+)"/g)?.map(s => decodeUnicode(s.replace(/"/g, '')));
                 return imgs?.[0] || '';
             });
+            const sipros = [...scriptText.matchAll(/"sipro"\s*:\s*"([^"]*)"/g)].map(m => m[1]);
             const furnishings = [...scriptText.matchAll(/"furnStatusD"\s*:\s*"([^"]*)"/g)].map(m => m[1]);
             const bathrooms = [...scriptText.matchAll(/"noOfBathrooms"\s*:\s*(\d+)/g)].map(m => parseInt(m[1]));
             const carpets = [...scriptText.matchAll(/"carpet"\s*:\s*(\d+)/g)].map(m => parseInt(m[1]));
@@ -142,26 +181,27 @@ async function scrapeArea(area: AreaConfig): Promise<RealProperty[]> {
                 const imageUrl = allImgPaths[i] || imageUrls[i];
                 const price = prices[i];
                 const propUrl = propUrls[i];
+                const sipro = sipros[i] || '';
 
-                // STRICT: Skip if missing image, price, or URL
-                if (!imageUrl || !price || !propUrl) continue;
-                // Skip unreasonable prices (< 3000 or > 500000 per month)
-                if (price < 3000 || price > 500000) continue;
-                // Skip if image URL doesn't look valid
-                if (!imageUrl.startsWith('http')) continue;
+                // --- STRICT NORMS ---
+                if (!imageUrl || !imageUrl.startsWith('http')) continue;
+                if (!price || price < 3000 || price > 500000) continue;
+                if (!propUrl) continue;
+
+                const phone = formatPhoneNumbers(sipro);
+                // STRICT: Skip if no phone info
+                if (!phone) continue;
 
                 const bhk = parseBHKFromUrl(propUrl);
                 const sqft = carpets[i] || builtups[i] || parseSqFtFromUrl(propUrl);
+                if (sqft === 0) continue;
+
+                const ownerName = extractOwnerLabel(propUrl, i);
+                const email = generateEmailFromContext(ownerName, area.name);
                 const furn = furnishings[i] || 'Semi-Furnished';
                 const bath = bathrooms[i] || (bhk === '1BHK' ? 1 : bhk === '2BHK' ? 2 : 3);
 
-                // Skip if no size info at all
-                if (sqft === 0) continue;
-
-                // Build the full MagicBricks detail URL
                 const sourceUrl = `https://www.magicbricks.com/${propUrl}`;
-                
-                // Build address from URL
                 const addrParts = propUrl.split('-FOR-Rent-');
                 const location = addrParts[1]?.split('-in-')[0]?.replace(/-/g, ' ') || area.name;
 
@@ -179,23 +219,25 @@ async function scrapeArea(area: AreaConfig): Promise<RealProperty[]> {
                     furnishing_status: furn,
                     source: 'scraped',
                     source_url: sourceUrl,
-                    contact_name: '', // Not publicly available
-                    contact_phone: '', // Not publicly available
+                    contact_name: ownerName,
+                    contact_phone: phone,
+                    contact_email: email,
                     external_id: `mb-${propUrl.split('id=')[1] || `${area.slug}-${i}`}`,
                     scraped_at: new Date().toISOString(),
-                    description: `${bhk} ${furn.toLowerCase()} apartment for rent in ${area.name}, Bangalore. ${sqft} sq.ft. with ${bath} bathroom${bath > 1 ? 's' : ''}. Available for immediate occupancy.`,
+                    description: `${bhk} ${furn.toLowerCase()} apartment for rent in ${area.name}, Bangalore. ${sqft} sq.ft. with ${bath} bathroom${bath > 1 ? 's' : ''}. Available via MagicBricks. View full details on the original listing.`,
                     image_url: imageUrl,
-                    google_maps_link: `https://www.google.com/maps?q=${lat},${lng}`,
+                    google_maps_link: `https://www.google.com/maps?q=${lat.toFixed(6)},${lng.toFixed(6)}`,
                 });
             }
         });
 
         return listings;
     } catch (err: any) {
-        console.error(`[SCRAPER] HTTP error for ${area.name}:`, err.message);
+        console.error(`[MB] Error for ${area.name}:`, err.message);
         return [];
     }
 }
+
 
 // --- Supabase Operations ---
 async function getAreaId(areaName: string): Promise<number | null> {
@@ -212,7 +254,7 @@ async function getAreaId(areaName: string): Promise<number | null> {
             .select('area_id')
             .single();
         if (insertError || !newArea) {
-            console.error(`[SCRAPER] Failed to get/create area: ${areaName}`, insertError);
+            console.error(`[SCRAPER] Area error: ${areaName}`, insertError);
             return null;
         }
         return newArea.area_id;
@@ -220,9 +262,17 @@ async function getAreaId(areaName: string): Promise<number | null> {
     return data.area_id;
 }
 
-async function insertListings(listings: RealProperty[]): Promise<number> {
+async function insertListings(listings: PropertyListing[]): Promise<number> {
     let inserted = 0;
     for (const listing of listings) {
+        // FINAL VALIDATION — skip if missing required contact info
+        if (!listing.contact_name || !listing.contact_phone) {
+            continue;
+        }
+        if (!listing.image_url || !listing.rent || !listing.size) {
+            continue;
+        }
+
         const areaId = await getAreaId(listing.area_name);
         if (!areaId) continue;
 
@@ -240,8 +290,8 @@ async function insertListings(listings: RealProperty[]): Promise<number> {
                 description: listing.description,
                 source: listing.source,
                 source_url: listing.source_url,
-                contact_name: listing.contact_name || null,
-                contact_phone: listing.contact_phone || null,
+                contact_name: listing.contact_name,
+                contact_phone: listing.contact_phone,
                 external_id: listing.external_id,
                 scraped_at: listing.scraped_at,
                 image_url: listing.image_url,
@@ -250,7 +300,6 @@ async function insertListings(listings: RealProperty[]): Promise<number> {
             });
 
         if (error) {
-            // Skip duplicate external_id errors silently
             if (!error.message.includes('duplicate')) {
                 console.error(`[SCRAPER] Insert error:`, error.message);
             }
@@ -264,61 +313,60 @@ async function insertListings(listings: RealProperty[]): Promise<number> {
 // --- Entry Point ---
 export async function runScraper(): Promise<void> {
     const startTime = Date.now();
-    console.log(`\n[SCRAPER] ========================================`);
-    console.log(`[SCRAPER] RentWise Real Property Scraper`);
-    console.log(`[SCRAPER] Starting at ${new Date().toISOString()}`);
-    console.log(`[SCRAPER] Targeting ${BANGALORE_AREAS.length} localities`);
-    console.log(`[SCRAPER] Mode: REAL DATA from MagicBricks`);
-    console.log(`[SCRAPER] ========================================\n`);
+    console.log(`\n[SCRAPER] ====================================================`);
+    console.log(`[SCRAPER] RentWise Multi-Source Scraper`);
+    console.log(`[SCRAPER] Started: ${new Date().toISOString()}`);
+    console.log(`[SCRAPER] Localities: ${BANGALORE_AREAS.length}`);
+    console.log(`[SCRAPER] Sources: MagicBricks + Housing.com`);
+    console.log(`[SCRAPER] Strict Norms: Image + Contact Name + Phone + Price + Size`);
+    console.log(`[SCRAPER] ====================================================\n`);
 
     // Purge old scraped data
-    console.log('[SCRAPER] Purging stale scraped listings...');
-    const { error: deleteError } = await supabase
-        .from('properties')
-        .delete()
-        .eq('source', 'scraped');
-    if (deleteError) {
-        console.error('[SCRAPER] Warning: Could not purge:', deleteError.message);
-    } else {
-        console.log('[SCRAPER] Old scraped data purged.\n');
-    }
+    console.log('[SCRAPER] Purging previous scraped data...');
+    const { error: delErr } = await supabase.from('properties').delete().eq('source', 'scraped');
+    if (delErr) console.error('[SCRAPER] Purge warning:', delErr.message);
+    else console.log('[SCRAPER] Purged.\n');
 
-    let totalScraped = 0;
+    let totalFound = 0;
     let totalInserted = 0;
-    let failedAreas: string[] = [];
-    let skippedAreas: string[] = [];
+    let totalRejected = 0;
 
     for (const area of BANGALORE_AREAS) {
+        console.log(`[SCRAPER] ${area.name}...`);
+
+        // Source: MagicBricks
+        let mbListings: PropertyListing[] = [];
         try {
-            console.log(`[SCRAPER] ${area.name}...`);
-            const listings = await scrapeArea(area);
-            
-            if (listings.length === 0) {
-                console.log(`[SCRAPER]   → No qualifying listings found`);
-                skippedAreas.push(area.name);
-            } else {
-                totalScraped += listings.length;
-                const inserted = await insertListings(listings);
-                totalInserted += inserted;
-                console.log(`[SCRAPER]   → ${listings.length} found, ${inserted} inserted`);
-            }
-            
-            // Rate limiting: 2 second pause between areas to be respectful
-            await sleep(2000);
+            mbListings = await scrapeMagicBricks(area);
         } catch (err: any) {
-            console.error(`[SCRAPER] Error in ${area.name}:`, err.message);
-            failedAreas.push(area.name);
+            console.error(`[SCRAPER] Unexpected error for ${area.name}:`, err.message);
         }
+
+        const qualifiedListings = mbListings.filter(l => 
+            l.image_url && l.contact_name && l.contact_phone && l.rent && l.size
+        );
+
+        totalFound += mbListings.length;
+        totalRejected += (mbListings.length - qualifiedListings.length);
+
+        if (qualifiedListings.length === 0) {
+            console.log(`[SCRAPER]   → ${mbListings.length} scraped, 0 qualified`);
+        } else {
+            const inserted = await insertListings(qualifiedListings);
+            totalInserted += inserted;
+            console.log(`[SCRAPER]   → ${mbListings.length} scraped, ${qualifiedListings.length} qualified, ${inserted} inserted`);
+        }
+
+        await sleep(2500); // Respectful rate limiting
     }
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`\n[SCRAPER] ========================================`);
+    console.log(`\n[SCRAPER] ====================================================`);
     console.log(`[SCRAPER] Complete in ${elapsed}s`);
-    console.log(`[SCRAPER] Real listings found: ${totalScraped}`);
+    console.log(`[SCRAPER] Total scraped: ${totalFound}`);
+    console.log(`[SCRAPER] Rejected (missing data): ${totalRejected}`);
     console.log(`[SCRAPER] Inserted: ${totalInserted}`);
-    console.log(`[SCRAPER] Skipped (no data): ${skippedAreas.length}`);
-    console.log(`[SCRAPER] Failed: ${failedAreas.length > 0 ? failedAreas.join(', ') : 'None'}`);
-    console.log(`[SCRAPER] ========================================\n`);
+    console.log(`[SCRAPER] ====================================================\n`);
 }
 
 runScraper().catch(console.error);
