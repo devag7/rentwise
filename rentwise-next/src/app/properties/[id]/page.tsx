@@ -101,9 +101,9 @@ export default async function PropertyDetails({ params }: { params: Promise<{ id
 
                     {/* Property Image */}
                     <div className="relative w-full aspect-[4/3] overflow-hidden bg-[#050505] border border-white/10 group">
-                        {formattedProperty.image_data ? (
+                        {(formattedProperty.image_url || formattedProperty.image_data) ? (
                             <img
-                                src={`data:image/jpeg;base64,${formattedProperty.image_data}`}
+                                src={formattedProperty.image_url || `data:image/jpeg;base64,${formattedProperty.image_data}`}
                                 alt={formattedProperty.address}
                                 className="w-full h-full object-cover transition-transform transform group-hover:scale-105 duration-1000"
                             />

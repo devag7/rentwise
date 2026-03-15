@@ -13,6 +13,7 @@ export interface Property {
     rent: number;
     size: number;
     image_data?: string;
+    image_url?: string;
     bathrooms?: number;
     parking?: boolean;
     furnishing_status?: string;
@@ -25,6 +26,7 @@ export interface Property {
     scraped_at?: string;
     external_id?: string;
     description?: string;
+    amenities?: string[];
 }
 
 // Pseudo AI Algorithm: Predicts a fair price based on the area's base rate and flat size.
@@ -148,9 +150,9 @@ export default function PropertyCard({ property }: { property: Property }) {
             </button>
 
             <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100 dark:bg-[#111]">
-                {property.image_data ? (
+                {(property.image_url || property.image_data) ? (
                     <img
-                        src={`data:image/jpeg;base64,${property.image_data}`}
+                        src={property.image_url || `data:image/jpeg;base64,${property.image_data}`}
                         alt={property.address}
                         className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
                         loading="lazy"

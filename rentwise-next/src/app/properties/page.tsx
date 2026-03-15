@@ -44,6 +44,8 @@ export default function Properties() {
                 query = query.order('rent', { ascending: true });
             } else if (filters.sort_by === 'price_desc') {
                 query = query.order('rent', { ascending: false });
+            } else if (filters.sort_by === 'size_desc') {
+                query = query.order('size', { ascending: false });
             } else {
                 // newest
                 query = query.order('created_at', { ascending: false });

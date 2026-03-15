@@ -1,6 +1,7 @@
 'use client'
 
-import { ChangeEvent, useState } from "react";
+import { ChangeEvent, useState, useEffect } from "react";
+import { createClient } from "@/utils/supabase/client";
 
 export interface FilterState {
     area_id: string;
@@ -11,6 +12,11 @@ export interface FilterState {
     parking: boolean;
     sort_by: string;
     source: string;
+}
+
+interface Area {
+    area_id: number;
+    name: string;
 }
 
 interface FilterBarProps {
@@ -29,6 +35,23 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
         source: "",
     });
 
+    const [areas, setAreas] = useState<Area[]>([]);
+    const supabase = createClient();
+
+    useEffect(() => {
+        async function fetchAreas() {
+            const { data, error } = await supabase
+                .from('areas')
+                .select('area_id, name')
+                .order('name', { ascending: true });
+
+            if (!error && data) {
+                setAreas(data);
+            }
+        }
+        fetchAreas();
+    }, [supabase]);
+
     const handleChange = (e: ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
         const { name, value, type } = e.target;
         const newFilters = {
@@ -42,7 +65,7 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
     return (
         <div className="bg-[#0A0A0A] border-y border-white/5 py-8 mb-12">
             <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-6 items-end">
-                {/* Area Selection */}
+                {/* Area Selection — Dynamic from Supabase */}
                 <div className="relative">
                     <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 block">Location</span>
                     <select
@@ -51,21 +74,16 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
                         onChange={handleChange}
                         className="w-full bg-transparent text-white border-b border-gray-800 pb-2 focus:outline-none focus:border-[#00A699] transition-colors duration-300 text-sm font-medium appearance-none cursor-pointer"
                     >
-                        <option value="" className="bg-[#111]">All Areas</option>
-                        <option value="1" className="bg-[#111]">Indiranagar</option>
-                        <option value="2" className="bg-[#111]">Koramangala</option>
-                        <option value="3" className="bg-[#111]">Whitefield</option>
-                        <option value="4" className="bg-[#111]">HSR Layout</option>
-                        <option value="5" className="bg-[#111]">Marathahalli</option>
-                        <option value="6" className="bg-[#111]">Bellandur</option>
-                        <option value="7" className="bg-[#111]">Jayanagar</option>
-                        <option value="8" className="bg-[#111]">BTM Layout</option>
-                        <option value="9" className="bg-[#111]">Electronic City</option>
-                        <option value="10" className="bg-[#111]">Banashankari</option>
+                        <option value="" className="bg-[#111]">All Areas ({areas.length})</option>
+                        {areas.map(area => (
+                            <option key={area.area_id} value={area.area_id} className="bg-[#111]">
+                                {area.name}
+                            </option>
+                        ))}
                     </select>
                 </div>
 
-                {/* Property Type Selection */}
+                {/* Property Type */}
                 <div className="relative">
                     <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 block">Asset Type</span>
                     <select
@@ -78,8 +96,6 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
                         <option value="1BHK" className="bg-[#111]">1BHK</option>
                         <option value="2BHK" className="bg-[#111]">2BHK</option>
                         <option value="3BHK" className="bg-[#111]">3BHK</option>
-                        <option value="1RK" className="bg-[#111]">1RK</option>
-                        <option value="PG" className="bg-[#111]">PG</option>
                     </select>
                 </div>
 
@@ -150,8 +166,9 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
                             className="w-full bg-transparent text-white border-b border-gray-800 pb-2 focus:outline-none focus:border-[#00A699] transition-colors duration-300 text-sm font-medium appearance-none cursor-pointer"
                         >
                             <option value="newest" className="bg-[#111]">Newest First</option>
-                            <option value="price_asc" className="bg-[#111]">Price: Low to High</option>
-                            <option value="price_desc" className="bg-[#111]">Price: High to Low</option>
+                            <option value="price_asc" className="bg-[#111]">Price: Low → High</option>
+                            <option value="price_desc" className="bg-[#111]">Price: High → Low</option>
+                            <option value="size_desc" className="bg-[#111]">Size: Largest</option>
                         </select>
                     </div>
 
@@ -169,7 +186,7 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
                                 <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${filters.parking ? 'transform translate-x-4' : ''}`}></div>
                             </div>
                             <span className="ml-3 text-[10px] font-bold text-gray-400 group-hover:text-white uppercase tracking-widest transition-colors">
-                                Requires Parking
+                                Parking
                             </span>
                         </label>
                     </div>
