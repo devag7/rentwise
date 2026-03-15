@@ -276,9 +276,7 @@ async function insertListings(listings: PropertyListing[]): Promise<number> {
         const areaId = await getAreaId(listing.area_name);
         if (!areaId) continue;
 
-        const { error } = await supabase
-            .from('properties')
-            .insert({
+        const row = {
                 area_id: areaId,
                 address: listing.address,
                 property_type: listing.property_type,
@@ -297,11 +295,22 @@ async function insertListings(listings: PropertyListing[]): Promise<number> {
                 image_url: listing.image_url,
                 google_maps_link: listing.google_maps_link,
                 landlord_id: null,
-            });
+            };
+
+        // Use upsert — never deletes data, only inserts or updates
+        const { error } = await supabase
+            .from('properties')
+            .upsert(row, { onConflict: 'external_id' });
 
         if (error) {
-            if (!error.message.includes('duplicate')) {
-                console.error(`[SCRAPER] Insert error:`, error.message);
+            // Fallback: try plain insert if upsert fails (e.g. no unique constraint)
+            const { error: insertErr } = await supabase.from('properties').insert(row);
+            if (insertErr) {
+                if (!insertErr.message.includes('duplicate')) {
+                    console.error(`[SCRAPER] Insert error:`, insertErr.message);
+                }
+            } else {
+                inserted++;
             }
         } else {
             inserted++;
@@ -321,11 +330,8 @@ export async function runScraper(): Promise<void> {
     console.log(`[SCRAPER] Strict Norms: Image + Contact Name + Phone + Price + Size`);
     console.log(`[SCRAPER] ====================================================\n`);
 
-    // Purge old scraped data
-    console.log('[SCRAPER] Purging previous scraped data...');
-    const { error: delErr } = await supabase.from('properties').delete().eq('source', 'scraped');
-    if (delErr) console.error('[SCRAPER] Purge warning:', delErr.message);
-    else console.log('[SCRAPER] Purged.\n');
+    // NO PURGE — using upsert to update existing and add new listings
+    console.log('[SCRAPER] Mode: Upsert (no data purge)\n');
 
     let totalFound = 0;
     let totalInserted = 0;
