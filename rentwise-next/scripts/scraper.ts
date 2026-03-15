@@ -99,7 +99,9 @@ function sleep(ms: number): Promise<void> {
 }
 
 function decodeUnicode(str: string): string {
-    return str.replace(/\\u002F/g, '/').replace(/\\u0026/g, '&');
+    return str
+        .replace(/\\\\u([0-9a-fA-F]{4})/g, (_m: string, hex: string) => String.fromCharCode(parseInt(hex, 16)))
+        .replace(/\\u([0-9a-fA-F]{4})/g, (_m: string, hex: string) => String.fromCharCode(parseInt(hex, 16)));
 }
 
 function parseBHKFromUrl(url: string): string {
