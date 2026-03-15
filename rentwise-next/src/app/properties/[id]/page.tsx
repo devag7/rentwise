@@ -183,8 +183,8 @@ export default async function PropertyDetails({ params }: { params: Promise<{ id
                     <InteractiveMediaLinks google_maps_link={formattedProperty.google_maps_link} />
                 </div>
 
-                {/* Right Column: Pricing & Action — sticky on desktop */}
-                <div className="w-full md:w-[400px] md:sticky md:top-32 md:self-start space-y-6">
+                {/* Right Column: Pricing & Action — sticky on desktop, scrolls internally */}
+                <div className="w-full md:w-[400px] md:sticky md:top-32 md:self-start md:max-h-[calc(100vh-10rem)] md:overflow-y-auto md:pr-1 space-y-6 scrollbar-hide">
                     <ApplicationCard
                         property_id={formattedProperty.property_id}
                         landlord_id={formattedProperty.landlord_id}

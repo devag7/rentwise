@@ -19,4 +19,12 @@ body {
   .glass-dark {
     @apply bg-[#0A0A0A]/80 backdrop-blur-2xl border-b border-white/5 shadow-2xl;
   }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }
