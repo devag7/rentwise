@@ -111,7 +111,7 @@ export default function ApplicationCard({ property_id, landlord_id, rent, landlo
     };
 
     return (
-        <div className="bg-[#050505] p-8 border border-white/10 h-fit sticky top-28 flex flex-col mt-12 md:mt-0">
+        <div className="bg-[#050505] p-8 border border-white/10 h-fit flex flex-col mt-12 md:mt-0">
 
             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Asking Valuation</p>
             <div className="flex items-end mb-8">
