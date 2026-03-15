@@ -42,7 +42,8 @@ export default async function PropertyDetails({ params }: { params: Promise<{ id
 
     const formattedProperty = {
         ...property,
-        area_name: property.areas?.name || 'Unknown Area'
+        area_name: property.areas?.name || 'Unknown Area',
+        images: property.image_url ? property.image_url.split(',').map((u: string) => u.trim()).filter(Boolean) : []
     };
 
     const predictedPrice = calculateAIPrediction(formattedProperty.area_name, formattedProperty.size, formattedProperty.property_type);
@@ -99,23 +100,46 @@ export default async function PropertyDetails({ params }: { params: Promise<{ id
                         </h1>
                     </div>
 
-                    {/* Property Image */}
-                    <div className="relative w-full aspect-[4/3] overflow-hidden bg-[#050505] border border-white/10 group">
-                        {(formattedProperty.image_url || formattedProperty.image_data) ? (
-                            <img
-                                src={formattedProperty.image_url || `data:image/jpeg;base64,${formattedProperty.image_data}`}
-                                alt={formattedProperty.address}
-                                className="w-full h-full object-cover transition-transform transform group-hover:scale-105 duration-1000"
-                            />
-                        ) : (
-                            <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 font-mono text-xs tracking-widest">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                                NO MEDIA AVAILABLE
+                    {/* Property Image Gallery */}
+                    {formattedProperty.images.length > 0 ? (
+                        <div className="flex flex-col gap-2">
+                            <div className="relative w-full aspect-[4/3] overflow-hidden bg-[#050505] border border-white/10 group">
+                                <img
+                                    src={formattedProperty.images[0]}
+                                    alt={formattedProperty.address}
+                                    className="w-full h-full object-cover transition-transform transform group-hover:scale-105 duration-1000"
+                                />
                             </div>
-                        )}
-                    </div>
+                            {formattedProperty.images.length > 1 && (
+                                <div className="grid grid-cols-3 gap-2">
+                                    {formattedProperty.images.slice(1, 4).map((img: string, idx: number) => (
+                                        <div key={idx} className="relative aspect-[4/3] overflow-hidden bg-[#050505] border border-white/10 group">
+                                            <img
+                                                src={img}
+                                                alt={`${formattedProperty.address} - ${idx + 2}`}
+                                                className="w-full h-full object-cover transition-transform transform group-hover:scale-105 duration-700"
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ) : formattedProperty.image_data ? (
+                        <div className="relative w-full aspect-[4/3] overflow-hidden bg-[#050505] border border-white/10 group">
+                            <img
+                                src={`data:image/jpeg;base64,${formattedProperty.image_data}`}
+                                alt={formattedProperty.address}
+                                className="w-full h-full object-cover"
+                            />
+                        </div>
+                    ) : (
+                        <div className="relative w-full aspect-[4/3] overflow-hidden bg-[#050505] border border-white/10 flex flex-col items-center justify-center text-gray-500 font-mono text-xs tracking-widest">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            NO MEDIA AVAILABLE
+                        </div>
+                    )}
 
                     {/* Metadata Grid */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-8 py-8 border-y border-white/10">
@@ -183,8 +207,8 @@ export default async function PropertyDetails({ params }: { params: Promise<{ id
                     <InteractiveMediaLinks google_maps_link={formattedProperty.google_maps_link} />
                 </div>
 
-                {/* Right Column: Pricing & Action — sticky on desktop, scrolls internally */}
-                <div className="w-full md:w-[400px] md:sticky md:top-32 md:self-start md:max-h-[calc(100vh-10rem)] md:overflow-y-auto md:pr-1 space-y-6 scrollbar-hide">
+                {/* Right Column: Pricing & Action — NOT sticky to prevent overlap */}
+                <div className="w-full md:w-[400px] flex flex-col gap-6 flex-shrink-0">
                     <ApplicationCard
                         property_id={formattedProperty.property_id}
                         landlord_id={formattedProperty.landlord_id}
@@ -199,7 +223,10 @@ export default async function PropertyDetails({ params }: { params: Promise<{ id
                         contact_phone={formattedProperty.contact_phone}
                     />
 
-                    <TourScheduler propertyId={formattedProperty.property_id} />
+                    {/* Only show tour booking for internal/platform listings */}
+                    {formattedProperty.source !== 'scraped' && (
+                        <TourScheduler propertyId={formattedProperty.property_id} />
+                    )}
 
                     <CommuteAnalyzer propertyArea={formattedProperty.area_name} />
 

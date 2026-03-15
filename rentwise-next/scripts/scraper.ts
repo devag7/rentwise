@@ -167,7 +167,7 @@ async function scrapeMagicBricks(area: AreaConfig): Promise<PropertyListing[]> {
             const propUrls = [...scriptText.matchAll(/"url"\s*:\s*"([^"]+)"/g)].map(m => decodeUnicode(m[1]));
             const allImgPaths = [...scriptText.matchAll(/"allImgPath"\s*:\s*\[([^\]]+)\]/g)].map(m => {
                 const imgs = m[1].match(/"([^"]+)"/g)?.map(s => decodeUnicode(s.replace(/"/g, '')));
-                return imgs?.[0] || '';
+                return imgs || [];
             });
             const sipros = [...scriptText.matchAll(/"sipro"\s*:\s*"([^"]*)"/g)].map(m => m[1]);
             const furnishings = [...scriptText.matchAll(/"furnStatusD"\s*:\s*"([^"]*)"/g)].map(m => m[1]);
@@ -178,13 +178,19 @@ async function scrapeMagicBricks(area: AreaConfig): Promise<PropertyListing[]> {
             const count = Math.min(imageUrls.length, prices.length, propUrls.length);
 
             for (let i = 0; i < count; i++) {
-                const imageUrl = allImgPaths[i] || imageUrls[i];
+                // Collect up to 4 images for this listing
+                const imgSet = allImgPaths[i] || [];
+                const primaryImage = imgSet[0] || imageUrls[i];
+                const allImages = imgSet.length > 0 
+                    ? imgSet.filter((u: string) => u.startsWith('http')).slice(0, 4)
+                    : [imageUrls[i]].filter(Boolean);
                 const price = prices[i];
                 const propUrl = propUrls[i];
                 const sipro = sipros[i] || '';
 
                 // --- STRICT NORMS ---
-                if (!imageUrl || !imageUrl.startsWith('http')) continue;
+                if (!primaryImage || !primaryImage.startsWith('http')) continue;
+                if (allImages.length === 0) continue;
                 if (!price || price < 3000 || price > 500000) continue;
                 if (!propUrl) continue;
 
@@ -225,7 +231,7 @@ async function scrapeMagicBricks(area: AreaConfig): Promise<PropertyListing[]> {
                     external_id: `mb-${propUrl.split('id=')[1] || `${area.slug}-${i}`}`,
                     scraped_at: new Date().toISOString(),
                     description: `${bhk} ${furn.toLowerCase()} apartment for rent in ${area.name}, Bangalore. ${sqft} sq.ft. with ${bath} bathroom${bath > 1 ? 's' : ''}. Available via MagicBricks. View full details on the original listing.`,
-                    image_url: imageUrl,
+                    image_url: allImages.join(','),
                     google_maps_link: `https://www.google.com/maps?q=${lat.toFixed(6)},${lng.toFixed(6)}`,
                 });
             }
@@ -367,11 +373,26 @@ export async function runScraper(): Promise<void> {
     }
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+
+    // Clean up stale listings (older than 3 days and not refreshed)
+    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: staleData, error: staleErr } = await supabase
+        .from('properties')
+        .delete()
+        .eq('source', 'scraped')
+        .lt('scraped_at', threeDaysAgo)
+        .select('property_id');
+    
+    const staleCount = staleData?.length || 0;
+    if (staleErr) console.error('[SCRAPER] Stale cleanup error:', staleErr.message);
+    else if (staleCount > 0) console.log(`[SCRAPER] Removed ${staleCount} stale listings (>3 days old)`);
+
     console.log(`\n[SCRAPER] ====================================================`);
     console.log(`[SCRAPER] Complete in ${elapsed}s`);
     console.log(`[SCRAPER] Total scraped: ${totalFound}`);
     console.log(`[SCRAPER] Rejected (missing data): ${totalRejected}`);
-    console.log(`[SCRAPER] Inserted: ${totalInserted}`);
+    console.log(`[SCRAPER] Inserted/Updated: ${totalInserted}`);
+    console.log(`[SCRAPER] Stale removed: ${staleCount}`);
     console.log(`[SCRAPER] ====================================================\n`);
 }
 
