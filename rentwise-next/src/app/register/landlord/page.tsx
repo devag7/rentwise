@@ -22,7 +22,7 @@ export default function RegisterLandlord() {
         const loadingToast = toast.loading('Initializing Account...');
 
         try {
-            const { error } = await supabase.auth.signUp({
+            const { data, error } = await supabase.auth.signUp({
                 email,
                 password,
                 options: {
@@ -33,15 +33,23 @@ export default function RegisterLandlord() {
                 }
             });
 
-            if (error) throw error;
+            if (error) {
+                if (error.status === 429) {
+                    throw new Error('Too many attempts. Please wait a few minutes and try again.');
+                }
+                throw error;
+            }
 
-            
-
-            toast.success('Registration successful.', { id: loadingToast });
-            router.push('/login/landlord');
+            if (data?.user?.identities?.length === 0) {
+                toast.error('An account with this email already exists.', { id: loadingToast });
+            } else {
+                toast.success('Registration successful! Check your email to verify.', { id: loadingToast });
+                router.push('/login/landlord');
+            }
 
         } catch (err: unknown) {
-            toast.error(((err as Error).message || 'Something went wrong'), { id: loadingToast });
+            const msg = (err as Error).message || 'Something went wrong';
+            toast.error(msg, { id: loadingToast });
         } finally {
             setIsLoading(false);
         }

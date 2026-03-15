@@ -41,7 +41,15 @@ export default function LoginLandlord() {
                 password,
             });
 
-            if (error) throw error;
+            if (error) {
+                if (error.status === 429) {
+                    throw new Error('Too many login attempts. Please wait a few minutes.');
+                }
+                if (error.message === 'Invalid login credentials') {
+                    throw new Error('Incorrect email or password. Please check your credentials.');
+                }
+                throw error;
+            }
 
             router.refresh();
 
@@ -49,7 +57,8 @@ export default function LoginLandlord() {
             router.push('/dashboard');
 
         } catch (err: unknown) {
-            toast.error(((err as Error).message || 'Invalid credentials'), { id: loadingToast });
+            const msg = (err as Error).message || 'Authentication failed';
+            toast.error(msg, { id: loadingToast });
         } finally {
             setIsLoading(false);
         }
