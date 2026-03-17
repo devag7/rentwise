@@ -152,10 +152,24 @@ export default function PropertyCard({ property }: { property: Property }) {
             <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100 dark:bg-[#111]">
                 {(property.image_url || property.image_data) ? (
                     <img
-                        src={property.image_url || `data:image/jpeg;base64,${property.image_data}`}
+                        src={
+                            property.image_url
+                                ? property.image_url.split(',')[0].trim()
+                                : `data:image/jpeg;base64,${property.image_data}`
+                        }
                         alt={property.address}
                         className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
                         loading="lazy"
+                        onError={(e) => {
+                            const img = e.currentTarget;
+                            const urls = property.image_url?.split(',').map(u => u.trim()).filter(Boolean) || [];
+                            const currentIdx = urls.indexOf(img.src);
+                            if (currentIdx >= 0 && currentIdx < urls.length - 1) {
+                                img.src = urls[currentIdx + 1]; // try next image on error
+                            } else {
+                                img.style.display = 'none';
+                            }
+                        }}
                     />
                 ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 font-mono text-xs tracking-widest bg-gray-100 dark:bg-[#0D0D0D]">
