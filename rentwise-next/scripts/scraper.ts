@@ -114,20 +114,43 @@ function buildNoBrokerUrl(area: Area): string {
 }
 
 function buildPhoto(item: Record<string, unknown>): string[] {
-    const photos = (item.photos as Array<Record<string, unknown>>) || [];
     const imgs: string[] = [];
-    for (const photo of photos.slice(0, 4)) {
+
+    // 1) Use pre-built thumbnail_image (already full URL from NoBroker actor)
+    const thumb = String(item.thumbnail_image || '');
+    if (thumb.startsWith('http') || thumb.startsWith('//')) {
+        imgs.push(thumb.startsWith('//') ? `https:${thumb}` : thumb);
+    }
+
+    // 2) Use original_image_url as second image
+    const orig = String(item.original_image_url || '');
+    if (orig && (orig.startsWith('http') || orig.startsWith('//'))) {
+        const url = orig.startsWith('//') ? `https:${orig}` : orig;
+        if (!imgs.includes(url)) imgs.push(url);
+    }
+
+    // 3) Build URLs from photos array for up to 4 total
+    const photos = (item.photos as Array<Record<string, unknown>>) || [];
+    const imgId = String(item.id || '');
+    for (const photo of photos) {
+        if (imgs.length >= 4) break;
         const map = photo.images_map as Record<string, string> | undefined;
         if (!map) continue;
-        const name = photo.name as string || '';
-        const imgId = item.id as string || '';
-        if (imgId && map.medium) {
-            imgs.push(`${NB_IMG_BASE}${imgId}/${map.medium}`);
-        } else if (map.original) {
-            imgs.push(`${NB_IMG_FALLBACK_BASE}${map.original}`);
+        // Use medium quality; fall back to large or original
+        const filename = map.medium || map.large || map.original || '';
+        if (!filename) continue;
+        let url: string;
+        if (filename.startsWith('http')) {
+            url = filename;
+        } else if (imgId) {
+            url = `${NB_IMG_BASE}${imgId}/${filename}`;
+        } else {
+            url = `${NB_IMG_FALLBACK_BASE}${filename}`;
         }
+        if (!imgs.includes(url)) imgs.push(url);
     }
-    return imgs.filter(Boolean);
+
+    return imgs.filter(u => u && u.startsWith('https'));
 }
 
 function isValidBangalore(lat: number, lng: number): boolean {
