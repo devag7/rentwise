@@ -152,13 +152,13 @@ export default async function PropertyDetails({ params }: { params: Promise<{ id
                         <div>
                             <p className="text-[10px] text-gray-500 font-bold tracking-widest uppercase mb-2">Bathrooms</p>
                             <p className="text-2xl font-black text-white tracking-tighter flex items-end gap-2">
-                                {formattedProperty.bathrooms || 1}
+                                {formattedProperty.bathrooms ?? 'N/A'}
                             </p>
                         </div>
                         <div>
                             <p className="text-[10px] text-gray-500 font-bold tracking-widest uppercase mb-2">Parking</p>
                             <p className="text-base font-bold text-white tracking-tight flex items-end gap-2 h-full pb-1">
-                                {formattedProperty.parking ? 'Allocated slot' : 'Not available'}
+                                {formattedProperty.parking === true ? 'Allocated slot' : formattedProperty.parking === false ? 'Not available' : 'Not specified'}
                             </p>
                         </div>
                         <div>
