@@ -183,7 +183,8 @@ async function scrapeMagicBricks(area: AreaConfig): Promise<PropertyListing[]> {
                 if (!priceNum) continue;
 
                 // Extract propUrl — look for a URL containing "for-rent" or BHK pattern
-                const propUrlMatch = context.match(/"url"\s*:\s*"([^"]*(?:for-rent|FOR-Rent|-BHK-)[^"]*)"/i);
+                // MUST search in 'after' (current property) to avoid matching the previous property and duplicating external_ids
+                const propUrlMatch = after.match(/"url"\s*:\s*"([^"]*(?:for-rent|FOR-Rent|-BHK-)[^"]*)"/i);
                 const propUrl = propUrlMatch ? decodeUnicode(propUrlMatch[1]) : null;
 
                 // Extract size — carpet preferred, then builtUpArea
@@ -333,14 +334,12 @@ async function insertListings(listings: PropertyListing[]): Promise<number> {
             .maybeSingle();
 
         if (existing) {
-            // Update scraped_at to keep listing fresh
             await supabase.from('properties').update({ scraped_at: row.scraped_at }).eq('external_id', row.external_id);
-            inserted++; // counts update as success too
+            inserted++;
         } else {
             const { error: ie } = await supabase.from('properties').insert(row);
             if (!ie) inserted++;
         }
-
     }
     return inserted;
 }
@@ -356,7 +355,7 @@ export async function runScraper(): Promise<void> {
     let totalFound = 0, totalInserted = 0;
 
     for (const area of BANGALORE_AREAS) {
-        console.log(`[SCRAPER] ${area.name}...`);
+        console.log(`\n[SCRAPER] ${area.name}...`);
         let listings: PropertyListing[] = [];
         try { listings = await scrapeMagicBricks(area); } catch (e: any) { console.error(e.message); }
         totalFound += listings.length;
