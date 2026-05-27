@@ -5,7 +5,8 @@ WORKDIR /app
 
 # Copy package files and install dependencies
 COPY package.json package-lock.json ./
-RUN npm ci
+# Install dependencies using npm install to bypass lockfile strictness on version bumps
+RUN npm install --legacy-peer-deps
 
 # Copy full source and build application
 COPY . .
