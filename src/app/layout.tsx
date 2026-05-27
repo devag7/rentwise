@@ -7,6 +7,8 @@ export const metadata: Metadata = {
   description: 'Find your perfect rental with AI-powered insights.',
 };
 
+import { AppProvider } from '@/components/providers/AppContext';
+
 export default function RootLayout({
   children,
 }: {
@@ -15,8 +17,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased selection:bg-blue-200">
-        <Navbar />
-        {children}
+        <AppProvider>
+          <Navbar />
+          {children}
+
         <Toaster
           position="bottom-center"
           toastOptions={{
@@ -45,6 +49,7 @@ export default function RootLayout({
             },
           }}
         />
+        </AppProvider>
       </body>
     </html>
   );

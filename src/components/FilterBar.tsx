@@ -1,38 +1,28 @@
 'use client'
 
 import { ChangeEvent, useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
-
-export interface FilterState {
-    area_id: string;
-    property_type: string;
-    min_rent: string;
-    max_rent: string;
-    furnishing_status: string;
-    parking: boolean;
-    sort_by: string;
-    source: string;
-}
 
 interface Area {
     area_id: number;
     name: string;
 }
 
-interface FilterBarProps {
-    onFilterChange: (filters: FilterState) => void;
-}
-
-export default function FilterBar({ onFilterChange }: FilterBarProps) {
-    const [filters, setFilters] = useState<FilterState>({
-        area_id: "",
-        property_type: "",
-        min_rent: "",
-        max_rent: "",
-        furnishing_status: "",
-        parking: false,
-        sort_by: "newest",
-        source: "",
+export default function FilterBar() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    
+    // Initialize state from URL params
+    const [filters, setFilters] = useState({
+        area_id: searchParams.get('area_id') || "",
+        property_type: searchParams.get('property_type') || "",
+        min_rent: searchParams.get('min_rent') || "",
+        max_rent: searchParams.get('max_rent') || "",
+        furnishing_status: searchParams.get('furnishing_status') || "",
+        parking: searchParams.get('parking') === 'true',
+        sort_by: searchParams.get('sort_by') || "newest",
+        source: searchParams.get('source') || "",
     });
 
     const [areas, setAreas] = useState<Area[]>([]);
@@ -54,18 +44,42 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
 
     const handleChange = (e: ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
         const { name, value, type } = e.target;
+        const checked = type === 'checkbox' ? (e.target as HTMLInputElement).checked : false;
+        const newValue = type === 'checkbox' ? checked : value;
+        
         const newFilters = {
             ...filters,
-            [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
+            [name]: newValue
         };
-        setFilters(newFilters);
-        onFilterChange(newFilters);
+        
+        setFilters(newFilters as any);
+
+        // Update URL
+        const current = new URLSearchParams(Array.from(searchParams.entries()));
+        
+        if (newValue && newValue !== "newest") {
+            current.set(name, String(newValue));
+        } else {
+            current.delete(name);
+            // Default sort doesn't need to be in URL
+            if (name === 'sort_by' && newValue === 'newest') {
+                current.delete('sort_by');
+            }
+            if (name === 'parking' && newValue === false) {
+                current.delete('parking');
+            }
+        }
+
+        const search = current.toString();
+        const query = search ? `?${search}` : "";
+        
+        router.push(`/properties${query}`);
     };
 
     return (
         <div className="bg-[#0A0A0A] border-y border-white/5 py-8 mb-12">
             <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-6 items-end">
-                {/* Area Selection — Dynamic from Supabase */}
+                {/* Area Selection */}
                 <div className="relative">
                     <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 block">Location</span>
                     <select
@@ -127,7 +141,6 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
 
                 {/* Advanced Filters */}
                 <div className="col-span-1 md:col-span-2 lg:col-span-2 grid grid-cols-1 sm:grid-cols-4 gap-6 pt-2 lg:pt-0">
-
                     <div className="relative">
                         <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 block">Source</span>
                         <select
@@ -191,7 +204,6 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
                         </label>
                     </div>
                 </div>
-
             </div>
         </div>
     );

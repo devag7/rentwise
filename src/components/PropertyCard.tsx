@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
 import toast from 'react-hot-toast';
+import { motion } from 'framer-motion';
 
 export interface Property {
     property_id: number;
@@ -115,7 +116,13 @@ export default function PropertyCard({ property }: { property: Property }) {
         : Math.max(50, 82 - parseInt(differencePercent));
 
     return (
-        <div className="group bg-white dark:bg-[#0A0A0A] rounded-none border border-gray-200 dark:border-white/10 overflow-hidden transform transition-all duration-500 hover:border-gray-900 dark:hover:border-white/30 flex flex-col h-full shadow-sm relative">
+        <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            whileHover={{ y: -5 }}
+            transition={{ duration: 0.4 }}
+            className="group bg-white dark:bg-[#0A0A0A] rounded-none border border-gray-200 dark:border-white/10 overflow-hidden flex flex-col h-full shadow-sm relative hover:shadow-2xl dark:hover:border-[#FF385C]/30"
+        >
 
             {/* Source Badge */}
             <div className="absolute top-4 left-4 z-20">
@@ -248,6 +255,6 @@ export default function PropertyCard({ property }: { property: Property }) {
                     </Link>
                 </div>
             </div>
-        </div>
+        </motion.div>
     );
 }

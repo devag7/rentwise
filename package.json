@@ -13,12 +13,13 @@
     "@supabase/supabase-js": "^2.98.0",
     "axios": "^1.13.6",
     "cheerio": "^1.1.0",
-    "crawlee": "^3.16.0",
+    "crawlee": "^3.10.1",
     "domhandler": "^5.0.3",
     "dotenv": "^17.3.1",
+    "framer-motion": "^12.40.0",
     "jspdf": "^4.2.0",
     "mapbox-gl": "^3.19.1",
-    "next": "16.1.6",
+    "next": "^16.2.6",
     "node-cron": "^4.2.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -29,6 +30,7 @@
     "tsx": "^4.21.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@tailwindcss/postcss": "^4",
     "@types/mapbox-gl": "^3.4.1",
     "@types/node": "^20",
@@ -37,6 +39,7 @@
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "playwright": "^1.60.0",
     "tailwindcss": "^4",
     "typescript": "5.9.3"
   }
