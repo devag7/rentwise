@@ -3,8 +3,15 @@
 import { useState } from 'react';
 import PropertyCard, { Property } from '@/components/PropertyCard';
 import MapboxCluster from '@/components/property/MapboxCluster';
+import { MarketStatsMap, marketKey } from '@/utils/market';
 
-export default function PropertiesList({ properties }: { properties: Property[] }) {
+export default function PropertiesList({
+    properties,
+    marketStats,
+}: {
+    properties: Property[];
+    marketStats?: MarketStatsMap;
+}) {
     const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
 
     return (
@@ -46,7 +53,11 @@ export default function PropertiesList({ properties }: { properties: Property[] 
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full animate-fade-in">
                     {properties.map(p => (
-                        <PropertyCard key={p.property_id} property={p} />
+                        <PropertyCard
+                            key={p.property_id}
+                            property={p}
+                            marketStat={marketStats?.[marketKey(p.area_id, p.property_type)]}
+                        />
                     ))}
                 </div>
             )}

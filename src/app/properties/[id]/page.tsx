@@ -8,8 +8,10 @@ import TourScheduler from '@/components/property/TourScheduler';
 import NeighborhoodProfile from '@/components/property/NeighborhoodProfile';
 import PropertyReviews from '@/components/property/PropertyReviews';
 import PropertyCard, { Property } from '@/components/PropertyCard';
+import ShareListing from '@/components/property/ShareListing';
+import { computeMarketStats, marketKey, getVerdict } from '@/utils/market';
 
-// Keep the same prediction logic as PropertyCard
+// Heuristic fallback when too few real comps exist
 const calculateAIPrediction = (area_name: string, size: number, type: string) => {
     let baseRatePerSqFt = 20;
 
@@ -25,6 +27,29 @@ const calculateAIPrediction = (area_name: string, size: number, type: string) =>
 
     return Math.round(prediction / 500) * 500;
 };
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
+    const supabase = await createClient();
+    const { data: p } = await supabase
+        .from('properties')
+        .select('address, rent, property_type, description, areas ( name )')
+        .eq('property_id', id)
+        .single();
+
+    if (!p) return { title: 'Listing not found' };
+
+    const area = (p.areas as unknown as { name: string } | null)?.name || 'Bangalore';
+    const title = `${p.property_type} for rent in ${area} — ₹${Number(p.rent).toLocaleString('en-IN')}/mo`;
+    const description = (p.description || `${p.property_type} at ${p.address}, ${area}. Verified market data and fair-rent verdict on RentWise.`).slice(0, 155);
+
+    return {
+        title,
+        description,
+        openGraph: { title, description, type: 'article' },
+        alternates: { canonical: `/properties/${id}` },
+    };
+}
 
 export default async function PropertyDetails({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
@@ -46,10 +71,31 @@ export default async function PropertyDetails({ params }: { params: Promise<{ id
         images: property.image_url ? property.image_url.split(',').map((u: string) => u.trim()).filter(Boolean) : []
     };
 
-    const predictedPrice = calculateAIPrediction(formattedProperty.area_name, formattedProperty.size, formattedProperty.property_type);
+    // Comps-based verdict: median rent of real listings with the same
+    // area + type. Heuristic only when too few comps exist.
+    const { data: compRows } = await supabase
+        .from('properties')
+        .select('area_id, property_type, rent')
+        .eq('area_id', formattedProperty.area_id)
+        .eq('property_type', formattedProperty.property_type);
+
+    const stats = computeMarketStats(compRows || []);
+    const verdict = getVerdict(
+        formattedProperty.rent,
+        stats[marketKey(formattedProperty.area_id, formattedProperty.property_type)]
+    );
+
+    const predictedPrice = verdict
+        ? verdict.median
+        : calculateAIPrediction(formattedProperty.area_name, formattedProperty.size, formattedProperty.property_type);
     const difference = predictedPrice - formattedProperty.rent;
-    const isGoodDeal = difference >= 0;
-    const differencePercent = Math.abs((difference / predictedPrice) * 100).toFixed(0);
+    const isGoodDeal = verdict ? verdict.label !== 'OVER MARKET' : difference >= 0;
+    const differencePercent = verdict
+        ? String(verdict.percent)
+        : Math.abs((difference / predictedPrice) * 100).toFixed(0);
+    const verdictText = verdict
+        ? (verdict.label === 'AT MARKET' ? 'at market' : `${verdict.percent}% ${verdict.label.toLowerCase()}`)
+        : undefined;
 
     const { data: similarPropertiesData } = await supabase
         .from('properties')
@@ -63,8 +109,36 @@ export default async function PropertyDetails({ params }: { params: Promise<{ id
         area_name: item.areas?.name || 'Unknown Area'
     })) as Property[];
 
+    // Structured data for search engines + AI crawlers
+    const jsonLd = {
+        '@context': 'https://schema.org',
+        '@type': 'RealEstateListing',
+        name: `${formattedProperty.property_type} for rent in ${formattedProperty.area_name}`,
+        description: formattedProperty.description || formattedProperty.address,
+        url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://157.245.110.163:3009'}/properties/${formattedProperty.property_id}`,
+        ...(formattedProperty.images[0] ? { image: formattedProperty.images[0] } : {}),
+        address: {
+            '@type': 'PostalAddress',
+            streetAddress: formattedProperty.address,
+            addressLocality: formattedProperty.area_name,
+            addressRegion: 'Bengaluru, Karnataka',
+            addressCountry: 'IN',
+        },
+        offers: {
+            '@type': 'Offer',
+            price: formattedProperty.rent,
+            priceCurrency: 'INR',
+            availability: 'https://schema.org/InStock',
+        },
+        ...(formattedProperty.size ? { floorSize: { '@type': 'QuantitativeValue', value: formattedProperty.size, unitCode: 'FTK' } } : {}),
+    };
+
     return (
         <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col items-center pb-20 pt-32 px-6 selection:bg-[#FF385C] selection:text-white">
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+            />
             <div className="relative max-w-5xl w-full bg-[#111] rounded-none shadow-2xl p-0 md:p-12 border border-white/10 flex flex-col md:flex-row gap-12 md:items-start">
 
                 {/* Left Column: Image & Details */}
@@ -93,6 +167,16 @@ export default async function PropertyDetails({ params }: { params: Promise<{ id
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                                 </svg>
                                 {formattedProperty.area_name}
+                            </span>
+                            <span className="ml-auto">
+                                <ShareListing
+                                    propertyId={formattedProperty.property_id}
+                                    address={formattedProperty.address}
+                                    areaName={formattedProperty.area_name}
+                                    propertyType={formattedProperty.property_type}
+                                    rent={formattedProperty.rent}
+                                    verdictText={verdictText}
+                                />
                             </span>
                         </div>
                         <h1 className="text-4xl md:text-6xl font-black text-white leading-[1.1] mb-2 tracking-tighter">

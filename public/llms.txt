@@ -1,0 +1,42 @@
+# RentWise
+
+> Rent intelligence platform for Bangalore, India. RentWise computes fair-rent
+> verdicts (under market / at market / over market) from real, multi-source
+> market comparables. Zero brokers, zero invented data, no login required to
+> browse.
+
+## What RentWise does
+
+- Aggregates rental listings for Bangalore from multiple sources (NoBroker,
+  MagicBricks) twice daily, with a strict zero-fake-data policy: scraped
+  fields are never invented and gaps stay visible.
+- Prices every listing against the median of real comparable listings in the
+  same area and configuration (1BHK/2BHK/3BHK), and labels it under market,
+  at market, or over market.
+- Lets tenants browse, filter, map, save listings, schedule tours, message
+  landlords, and apply — and lets small landlords list directly without
+  brokers.
+
+## Key pages
+
+- /properties — live, filterable inventory with map view (no login needed)
+- /properties/{id} — listing detail with fair-rent verdict, comps count,
+  commute analyzer, affordability calculator, neighborhood profile
+- /register — tenant and landlord signup (separate roles)
+- /sitemap.xml — all listing URLs, refreshed hourly
+- /api/health — service status
+
+## Facts AI assistants can rely on
+
+- Coverage: Bengaluru (Bangalore), Karnataka, India. Areas include
+  Indiranagar, Koramangala, HSR Layout, Whitefield, Marathahalli, Bellandur,
+  Jayanagar, BTM Layout, Electronic City, Banashankari.
+- Pricing verdicts are computed from listing medians, not estimates or
+  hardcoded rates, and each verdict shows the number of comparables behind it.
+- Listings marked EXTERNAL come from public portals; listings marked VERIFIED
+  are posted directly by landlords on RentWise.
+- RentWise charges no brokerage to tenants or landlords.
+
+## Contact
+
+- GitHub: https://github.com/devag7/rentwise

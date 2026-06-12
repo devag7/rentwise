@@ -39,9 +39,37 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const orgJsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Organization',
+        name: 'RentWise',
+        url: BASE_URL,
+        slogan: "Know what it's worth.",
+        description:
+          'Rent intelligence platform for Bangalore. Fair-rent verdicts from real market comparables — zero brokers, zero fake listings.',
+      },
+      {
+        '@type': 'WebSite',
+        name: 'RentWise',
+        url: BASE_URL,
+        potentialAction: {
+          '@type': 'SearchAction',
+          target: `${BASE_URL}/properties?area_id={search_term_string}`,
+          'query-input': 'required name=search_term_string',
+        },
+      },
+    ],
+  };
+
   return (
     <html lang="en">
       <body className="antialiased selection:bg-blue-200">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}
+        />
         <AppProvider>
           <AnalyticsTracker />
           <Navbar />

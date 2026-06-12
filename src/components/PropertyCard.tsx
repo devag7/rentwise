@@ -5,9 +5,11 @@ import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
+import { MarketStat, getVerdict } from '@/utils/market';
 
 export interface Property {
     property_id: number;
+    area_id?: number;
     address: string;
     area_name: string;
     property_type: string;
@@ -49,7 +51,13 @@ const calculateAIPrediction = (area_name: string, size: number, type: string) =>
     return Math.round(prediction / 500) * 500; // Round to nearest 500
 };
 
-export default function PropertyCard({ property }: { property: Property }) {
+export default function PropertyCard({
+    property,
+    marketStat,
+}: {
+    property: Property;
+    marketStat?: MarketStat;
+}) {
     const supabase = createClient();
     const [isSaved, setIsSaved] = useState(false);
     const [userId, setUserId] = useState<string | null>(null);
@@ -107,10 +115,20 @@ export default function PropertyCard({ property }: { property: Property }) {
         }
     };
 
-    const predictedPrice = calculateAIPrediction(property.area_name, property.size, property.property_type);
+    // Prefer the comps-based verdict (median of real listings, same area +
+    // type). Fall back to the heuristic only when too few comps exist.
+    const verdict = getVerdict(property.rent, marketStat);
+    const predictedPrice = verdict
+        ? verdict.median
+        : calculateAIPrediction(property.area_name, property.size, property.property_type);
     const difference = predictedPrice - property.rent;
-    const isGoodDeal = difference >= 0;
-    const differencePercent = Math.abs((difference / predictedPrice) * 100).toFixed(0);
+    const isGoodDeal = verdict ? verdict.label !== 'OVER MARKET' : difference >= 0;
+    const differencePercent = verdict
+        ? String(verdict.percent)
+        : Math.abs((difference / predictedPrice) * 100).toFixed(0);
+    const badgeText = verdict
+        ? (verdict.label === 'AT MARKET' ? 'AT MARKET' : `${verdict.percent}% ${verdict.label}`)
+        : (isGoodDeal ? `${differencePercent}% UNDER MARKET` : `${differencePercent}% OVER MARKET`);
     const matchScore = isGoodDeal
         ? Math.min(99, 82 + parseInt(differencePercent))
         : Math.max(50, 82 - parseInt(differencePercent));
@@ -202,7 +220,7 @@ export default function PropertyCard({ property }: { property: Property }) {
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                         </svg>
-                        {isGoodDeal ? `${differencePercent}% UNDER MARKET` : `${differencePercent}% OVER MARKET`}
+                        {badgeText}
                     </div>
                 </div>
 
@@ -240,7 +258,9 @@ export default function PropertyCard({ property }: { property: Property }) {
                         </div>
 
                         <div className="flex flex-col items-end text-right">
-                            <span className="text-[10px] text-gray-500 dark:text-gray-400 font-bold tracking-widest uppercase mb-1 text-[#00A699]">AI Valuation</span>
+                            <span className="text-[10px] font-bold tracking-widest uppercase mb-1 text-[#00A699]">
+                                {verdict ? `Market median · ${verdict.count} comps` : 'AI Valuation'}
+                            </span>
                             <span className="text-sm font-bold text-gray-400 line-through decoration-2 decoration-gray-500/50">
                                 ₹{predictedPrice.toLocaleString('en-IN')}
                             </span>

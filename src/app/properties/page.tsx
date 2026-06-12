@@ -1,6 +1,14 @@
 import { createClient } from '@/utils/supabase/server';
 import FilterBar from '@/components/FilterBar';
 import PropertiesList from './PropertiesList';
+import { computeMarketStats } from '@/utils/market';
+
+export const metadata = {
+    title: 'Flats for rent in Bangalore with fair-rent verdicts',
+    description:
+        'Browse verified Bangalore rental listings priced against real market comparables. Filter by area, budget, BHK — no brokers, no login needed.',
+    alternates: { canonical: '/properties' },
+};
 
 export default async function Properties({
     searchParams,
@@ -44,7 +52,14 @@ export default async function Properties({
         query = query.order('created_at', { ascending: false });
     }
 
-    const { data, error } = await query;
+    // Market medians come from the FULL inventory (unfiltered) so verdicts
+    // aren't distorted by whatever filters the user has applied.
+    const [{ data, error }, { data: compRows }] = await Promise.all([
+        query,
+        supabase.from('properties').select('area_id, property_type, rent'),
+    ]);
+
+    const marketStats = computeMarketStats(compRows || []);
 
     const formattedData = data && !error ? data.map(item => ({
         ...item,
@@ -61,7 +76,7 @@ export default async function Properties({
 
                 <FilterBar />
 
-                <PropertiesList properties={formattedData} />
+                <PropertiesList properties={formattedData} marketStats={marketStats} />
             </div>
         </div>
     );
