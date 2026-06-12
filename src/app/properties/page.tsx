@@ -2,6 +2,7 @@ import { createClient } from '@/utils/supabase/server';
 import FilterBar from '@/components/FilterBar';
 import PropertiesList from './PropertiesList';
 import { computeMarketStats } from '@/utils/market';
+import WatchArea from '@/components/WatchArea';
 
 export const metadata = {
     title: 'Flats for rent in Bangalore with fair-rent verdicts',
@@ -77,6 +78,8 @@ export default async function Properties({
                 <FilterBar />
 
                 <PropertiesList properties={formattedData} marketStats={marketStats} />
+
+                <WatchArea />
             </div>
         </div>
     );

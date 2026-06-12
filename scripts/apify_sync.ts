@@ -38,6 +38,7 @@ interface ApifyItem {
     carpet_area_sqft?: number;
     price_inr?: number;
     furnishing?: string;
+    deposit_inr?: number;
     locality?: string;
     address?: string;
     latitude?: number;
@@ -112,6 +113,7 @@ export async function runApifySync() {
                 bathrooms: item.bathrooms && item.bathrooms > 0 && item.bathrooms < 10 ? item.bathrooms : null,
                 parking: null, // actor doesn't expose parking; never invent it
                 furnishing_status: furnishing,
+                deposit: item.deposit_inr && item.deposit_inr > 0 ? Math.round(item.deposit_inr) : null,
                 description: item.address || `Property in ${areaName}`,
                 source: 'scraped',
                 source_url: item.url,
@@ -135,7 +137,7 @@ export async function runApifySync() {
             if (existing) {
                 await supabase
                     .from('properties')
-                    .update({ scraped_at: row.scraped_at, rent: row.rent, image_url: row.image_url })
+                    .update({ scraped_at: row.scraped_at, rent: row.rent, image_url: row.image_url, deposit: row.deposit })
                     .eq('external_id', row.external_id);
                 updated++;
             } else {

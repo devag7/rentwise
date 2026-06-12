@@ -18,6 +18,7 @@ export interface Property {
     image_data?: string;
     image_url?: string;
     bathrooms?: number;
+    deposit?: number;
     parking?: boolean;
     furnishing_status?: string;
     longitude?: number;

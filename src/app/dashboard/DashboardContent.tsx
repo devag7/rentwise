@@ -7,6 +7,7 @@ import PropertyCard, { Property } from '@/components/PropertyCard';
 import LandlordApplications from '@/components/dashboard/LandlordApplications';
 import TenantApplications from '@/components/dashboard/TenantApplications';
 import toast from 'react-hot-toast';
+import { track } from '@/utils/analytics';
 
 export default function DashboardContent() {
     const router = useRouter();
@@ -30,6 +31,11 @@ export default function DashboardContent() {
         preferences: '',
         landlord_phone: '',
         google_maps_link: '',
+        deposit: '',
+        bathrooms: '',
+        furnishing_status: '',
+        parking: '',
+        description: '',
     });
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -187,11 +193,17 @@ export default function DashboardContent() {
                     preferences: formData.preferences,
                     landlord_phone: formData.landlord_phone,
                     google_maps_link: formData.google_maps_link,
+                    deposit: formData.deposit ? parseInt(formData.deposit) : null,
+                    bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : null,
+                    furnishing_status: formData.furnishing_status || null,
+                    parking: formData.parking === '' ? null : formData.parking === 'yes',
+                    description: formData.description || null,
                     image_data: base64Image
                 });
 
             if (error) throw error;
 
+            track('listing_created', { area_id: parseInt(formData.area_id), property_type: formData.property_type });
             toast.success('Property added successfully.', { id: loadingToast });
 
             setFormData({
@@ -202,7 +214,12 @@ export default function DashboardContent() {
                 rent: '',
                 preferences: '',
                 landlord_phone: '',
-                google_maps_link: ''
+                google_maps_link: '',
+                deposit: '',
+                bathrooms: '',
+                furnishing_status: '',
+                parking: '',
+                description: '',
             });
             setImageFile(null);
             setImagePreview(null);
@@ -269,14 +286,14 @@ export default function DashboardContent() {
 
                             <h2 className="text-2xl font-bold text-white mb-2 flex items-center gap-3">
                                 <span className="w-2 h-2 bg-[#FF385C] rounded-full animate-pulse"></span>
-                                <span className="uppercase tracking-widest text-[#FF385C]">Terminal Upload</span>
+                                <span className="uppercase tracking-widest text-[#FF385C]">List your property</span>
                             </h2>
-                            <p className="text-gray-500 font-mono text-xs uppercase tracking-widest mb-8 border-b border-white/10 pb-4">Initialize New Property Record</p>
+                            <p className="text-gray-500 font-mono text-xs uppercase tracking-widest mb-8 border-b border-white/10 pb-4">Three minutes. Zero brokerage. Priced against live market comps the moment it goes live.</p>
 
                             <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="flex flex-col relative">
-                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Sector / Zone</label>
+                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Area</label>
                                         <select
                                             name="area_id"
                                             value={formData.area_id}
@@ -284,7 +301,7 @@ export default function DashboardContent() {
                                             className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors font-mono text-sm cursor-pointer appearance-none"
                                             required
                                         >
-                                            <option value="" className="bg-[#111]">Select Sector</option>
+                                            <option value="" className="bg-[#111]">Select area</option>
                                             {areas.map(area => (
                                                 <option key={area.area_id} value={area.area_id} className="bg-[#111]">{area.area_name}</option>
                                             ))}
@@ -295,7 +312,7 @@ export default function DashboardContent() {
                                     </div>
 
                                     <div className="flex flex-col relative">
-                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Layout Typology</label>
+                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Configuration</label>
                                         <select
                                             name="property_type"
                                             value={formData.property_type}
@@ -316,12 +333,12 @@ export default function DashboardContent() {
                                 </div>
 
                                 <div className="flex flex-col">
-                                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Physical Address Coordinates</label>
+                                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Address</label>
                                     <input
                                         name="address"
                                         value={formData.address}
                                         onChange={handleChange}
-                                        placeholder="Full designation..."
+                                        placeholder="Building, street, landmark..."
                                         className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors placeholder-gray-700 font-mono text-sm"
                                         required
                                     />
@@ -329,7 +346,7 @@ export default function DashboardContent() {
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="flex flex-col">
-                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Area (SQ FT)</label>
+                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Size (sq ft)</label>
                                         <input
                                             name="size"
                                             type="number"
@@ -342,7 +359,7 @@ export default function DashboardContent() {
                                     </div>
 
                                     <div className="flex flex-col">
-                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Valuation (₹)</label>
+                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Monthly rent (₹)</label>
                                         <input
                                             name="rent"
                                             type="number"
@@ -355,20 +372,87 @@ export default function DashboardContent() {
                                     </div>
                                 </div>
 
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div className="flex flex-col">
+                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Deposit (₹, optional)</label>
+                                        <input
+                                            name="deposit"
+                                            type="number"
+                                            value={formData.deposit}
+                                            onChange={handleChange}
+                                            placeholder="e.g. 100000"
+                                            className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors placeholder-gray-700 font-mono text-sm"
+                                        />
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Bathrooms</label>
+                                        <input
+                                            name="bathrooms"
+                                            type="number"
+                                            min="1"
+                                            max="9"
+                                            value={formData.bathrooms}
+                                            onChange={handleChange}
+                                            placeholder="e.g. 2"
+                                            className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors placeholder-gray-700 font-mono text-sm"
+                                        />
+                                    </div>
+                                    <div className="flex flex-col relative">
+                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Parking</label>
+                                        <select
+                                            name="parking"
+                                            value={formData.parking}
+                                            onChange={handleChange}
+                                            className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors font-mono text-sm cursor-pointer appearance-none"
+                                        >
+                                            <option value="" className="bg-[#111]">Not specified</option>
+                                            <option value="yes" className="bg-[#111]">Yes</option>
+                                            <option value="no" className="bg-[#111]">No</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="flex flex-col relative">
+                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Furnishing</label>
+                                        <select
+                                            name="furnishing_status"
+                                            value={formData.furnishing_status}
+                                            onChange={handleChange}
+                                            className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors font-mono text-sm cursor-pointer appearance-none"
+                                        >
+                                            <option value="" className="bg-[#111]">Not specified</option>
+                                            <option value="Furnished" className="bg-[#111]">Furnished</option>
+                                            <option value="Semi-Furnished" className="bg-[#111]">Semi-Furnished</option>
+                                            <option value="Unfurnished" className="bg-[#111]">Unfurnished</option>
+                                        </select>
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Description (optional)</label>
+                                        <input
+                                            name="description"
+                                            value={formData.description}
+                                            onChange={handleChange}
+                                            placeholder="What makes this place good to live in?"
+                                            className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors placeholder-gray-700 font-mono text-sm"
+                                        />
+                                    </div>
+                                </div>
+
                                 <div className="flex flex-col">
-                                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Occupant Protocols</label>
+                                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Tenant preferences (optional)</label>
                                     <input
                                         name="preferences"
                                         value={formData.preferences}
                                         onChange={handleChange}
-                                        placeholder="E.g., No syntax errors, pure logic expected."
+                                        placeholder="E.g., Family preferred, vegetarians only, pets OK..."
                                         className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors placeholder-gray-700 font-mono text-sm"
                                     />
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="flex flex-col">
-                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Comm Link (Phone)</label>
+                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Phone (shared with applicants)</label>
                                         <input
                                             name="landlord_phone"
                                             value={formData.landlord_phone}
@@ -378,7 +462,7 @@ export default function DashboardContent() {
                                         />
                                     </div>
                                     <div className="flex flex-col">
-                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Map Vector</label>
+                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Google Maps link (optional)</label>
                                         <input
                                             name="google_maps_link"
                                             value={formData.google_maps_link}
@@ -390,13 +474,13 @@ export default function DashboardContent() {
                                 </div>
 
                                 <div className="pt-2">
-                                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Visual Feed (MAX 500KB JPEG/PNG)</label>
+                                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Photo (JPEG/PNG, max 500KB)</label>
                                     <div className="flex items-center gap-4">
                                         <label className="cursor-pointer inline-flex items-center px-4 py-3 bg-white/5 border border-white/20 hover:bg-white/10 text-white transition-colors font-mono uppercase tracking-widest text-[10px] font-bold">
-                                            Capture Matrix
+                                            Choose photo
                                             <input type="file" accept="image/jpeg, image/png" onChange={handleImageChange} className="hidden" />
                                         </label>
-                                        <span className="text-xs text-gray-500 font-mono">{imageFile ? imageFile.name : "[AWAITING DATA PING]"}</span>
+                                        <span className="text-xs text-gray-500 font-mono">{imageFile ? imageFile.name : "No photo selected"}</span>
                                     </div>
 
                                     {imagePreview && (
@@ -422,7 +506,7 @@ export default function DashboardContent() {
                                         className="w-full py-4 bg-white text-black font-bold text-xs uppercase tracking-widest transition-all duration-300 hover:bg-[#FF385C] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                                         disabled={isLoading}
                                     >
-                                        {isLoading ? <span className="animate-pulse">Uploading to Matrix...</span> : "Execute Transmission"}
+                                        {isLoading ? <span className="animate-pulse">Publishing...</span> : "Publish listing"}
                                     </button>
                                 </div>
                             </form>

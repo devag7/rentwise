@@ -240,6 +240,14 @@ export default async function PropertyDetails({ params }: { params: Promise<{ id
                             </p>
                         </div>
                         <div>
+                            <p className="text-[10px] text-gray-500 font-bold tracking-widest uppercase mb-2">Deposit</p>
+                            <p className="text-base font-bold text-white tracking-tight flex items-end gap-2 h-full pb-1">
+                                {formattedProperty.deposit
+                                    ? `₹${Number(formattedProperty.deposit).toLocaleString('en-IN')}`
+                                    : 'Not specified'}
+                            </p>
+                        </div>
+                        <div>
                             <p className="text-[10px] text-gray-500 font-bold tracking-widest uppercase mb-2">Parking</p>
                             <p className="text-base font-bold text-white tracking-tight flex items-end gap-2 h-full pb-1">
                                 {formattedProperty.parking === true ? 'Allocated slot' : formattedProperty.parking === false ? 'Not available' : 'Not specified'}
