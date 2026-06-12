@@ -25,7 +25,7 @@ export default function Home() {
               <span className="text-gray-500">KNOW what it&apos;s worth.</span>
             </h1>
             <p className="text-xl lg:text-2xl text-gray-400 mb-12 leading-relaxed max-w-2xl font-light">
-              RentWise uses billions of data points to evaluate properties in Bangalore. Find underpriced luxury and verified inventory instantly.
+              Every Bangalore listing priced against live market comparables — under market, at market, or over market, with the comps to prove it.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-5">
@@ -57,7 +57,7 @@ export default function Home() {
               <div className="mb-6 font-mono text-[#FF385C] text-sm">01 / ANALYTICS</div>
               <h4 className="text-2xl font-extrabold mb-4 tracking-tight">Algorithmic Valuation</h4>
               <p className="text-gray-600 leading-relaxed font-light text-lg">
-                Our model cross-references square footage, exact latitude/longitude, and current market velocity to determine the exact fair value of every listing.
+                Every listing is priced against the median of real comparable listings in the same area and configuration — and we show you how many comps back each verdict.
               </p>
             </div>
 
