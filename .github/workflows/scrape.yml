@@ -1,0 +1,31 @@
+name: Manual Scrape
+
+on:
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    name: Trigger scraper on droplet
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run scraper inside the app container
+        uses: appleboy/ssh-action@v1.2.4
+        with:
+          host: ${{ secrets.HOST }}
+          username: root
+          password: ${{ secrets.PASSWORD }}
+          command_timeout: 30m
+          script: |
+            set -e
+            echo "=== MagicBricks + NoBroker sync ==="
+            docker exec rentwise_next_app npx tsx scripts/scraper.ts || echo "MB scraper exited nonzero"
+            docker exec rentwise_next_app npm run scrape || echo "Apify sync exited nonzero"
+            echo "=== row count check ==="
+            docker exec rentwise_next_app node -e "
+              const https = require('https');
+              const url = process.env.NEXT_PUBLIC_SUPABASE_URL + '/rest/v1/properties?select=property_id&limit=1';
+              const req = https.request(url, { method: 'HEAD', headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, Authorization: 'Bearer ' + process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, Prefer: 'count=exact' } }, res => {
+                console.log('properties count:', res.headers['content-range']);
+              });
+              req.end();
+            "
