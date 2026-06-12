@@ -17,6 +17,14 @@ jobs:
           command_timeout: 30m
           script: |
             set -e
+            echo "=== cleanup: remove RLS probe row if present ==="
+            docker exec rentwise_next_app node -e "
+              import('@supabase/supabase-js').then(async ({ createClient }) => {
+                const c = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+                const { error, count } = await c.from('properties').delete({ count: 'exact' }).eq('address', '__rls_test__');
+                console.log('test rows removed:', count ?? 0, error?.message ?? '');
+              });
+            " || echo "cleanup skipped"
             echo "=== MagicBricks + NoBroker sync ==="
             docker exec rentwise_next_app npx tsx scripts/scraper.ts || echo "MB scraper exited nonzero"
             docker exec rentwise_next_app npm run scrape || echo "Apify sync exited nonzero"

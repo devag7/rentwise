@@ -139,7 +139,7 @@ export default function PropertyCard({
             animate={{ opacity: 1, y: 0 }}
             whileHover={{ y: -5 }}
             transition={{ duration: 0.4 }}
-            className="group bg-white dark:bg-[#0A0A0A] rounded-none border border-gray-200 dark:border-white/10 overflow-hidden flex flex-col h-full shadow-sm relative hover:shadow-2xl dark:hover:border-[#FF385C]/30"
+            className="property-card group bg-white dark:bg-[#0A0A0A] rounded-none border border-gray-200 dark:border-white/10 overflow-hidden flex flex-col h-full shadow-sm relative hover:shadow-2xl dark:hover:border-[#FF385C]/30"
         >
 
             {/* Source Badge */}
