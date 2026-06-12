@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- RentWise Fair-Value Gauge: market line + price dot under judgment -->
+  <rect x="32" y="32" width="448" height="448" rx="96" fill="#0A0A0A"/>
+  <line x1="128" y1="296" x2="384" y2="296" stroke="#FAFAF7" stroke-width="28" stroke-linecap="round"/>
+  <circle cx="256" cy="180" r="52" fill="#FF385C"/>
+</svg>

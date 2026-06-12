@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 200" width="1040" height="200">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@800&amp;display=swap');
+    text { font-family: 'Bricolage Grotesque', 'Arial Black', sans-serif; font-weight: 800; letter-spacing: -0.03em; }
+  </style>
+  <!-- RENTWISE wordmark; coral full stop = the verdict -->
+  <text x="0" y="150" font-size="152" fill="#0A0A0A">RENTWISE</text>
+  <circle cx="985" cy="132" r="22" fill="#FF385C"/>
+</svg>

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1340 220" width="1340" height="220">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@800&amp;display=swap');
+    text { font-family: 'Bricolage Grotesque', 'Arial Black', sans-serif; font-weight: 800; letter-spacing: -0.03em; }
+  </style>
+  <!-- Symbol -->
+  <rect x="10" y="10" width="200" height="200" rx="42" fill="#0A0A0A"/>
+  <line x1="52" y1="126" x2="168" y2="126" stroke="#FAFAF7" stroke-width="13" stroke-linecap="round"/>
+  <circle cx="110" cy="75" r="23" fill="#FF385C"/>
+  <!-- Wordmark -->
+  <text x="290" y="160" font-size="152" fill="#0A0A0A">RENTWISE</text>
+  <circle cx="1278" cy="142" r="22" fill="#FF385C"/>
+</svg>

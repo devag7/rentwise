@@ -1,0 +1,37 @@
+:root {
+  /* RentWise design tokens — source: docs/brand/brand.md */
+  --color-ink: #0A0A0A;
+  --color-paper: #FAFAF7;
+  --color-signal: #FF385C;
+  --color-verified: #00A699;
+  --color-graphite: #6F6F76;
+
+  --font-display: 'Bricolage Grotesque', 'Arial Black', sans-serif;
+  --font-mono: 'Reddit Mono', 'SF Mono', monospace;
+  --font-body: 'Instrument Sans', system-ui, sans-serif;
+
+  --font-size-h1: 64px;
+  --font-size-h2: 40px;
+  --font-size-h3: 24px;
+  --font-size-body: 17px;
+  --font-size-caption: 12px;
+
+  --line-height-display: 1.05;
+  --line-height-body: 1.6;
+
+  --tracking-display: -0.03em;
+  --tracking-label: 0.12em;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 40px;
+  --space-6: 64px;
+  --space-7: 96px;
+
+  --radius-none: 0;       /* default: RentWise UI is square-cornered */
+  --radius-symbol: 21%;   /* app icon / symbol container only */
+
+  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.08); /* hairline, not drop shadow */
+}
