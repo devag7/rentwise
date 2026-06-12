@@ -119,7 +119,9 @@ export async function runApifySync() {
                 contact_phone: null, // Scraper might not provide phone without login
                 external_id: externalId,
                 scraped_at: new Date().toISOString(),
-                image_url: item.images?.length ? item.images.slice(0, 4).join(',') : (item.thumbnail || ''),
+                // NoBroker only serves the assets.nobroker.in "medium" thumbnail
+                // publicly; the images[] array (original size) returns 404.
+                image_url: item.thumbnail || '',
                 google_maps_link: item.latitude && item.longitude ? `https://www.google.com/maps?q=${item.latitude},${item.longitude}` : '',
                 landlord_id: null
             };
@@ -131,7 +133,10 @@ export async function runApifySync() {
                 .maybeSingle();
 
             if (existing) {
-                await supabase.from('properties').update({ scraped_at: row.scraped_at, rent: row.rent }).eq('external_id', row.external_id);
+                await supabase
+                    .from('properties')
+                    .update({ scraped_at: row.scraped_at, rent: row.rent, image_url: row.image_url })
+                    .eq('external_id', row.external_id);
                 updated++;
             } else {
                 const { error } = await supabase.from('properties').insert(row);
