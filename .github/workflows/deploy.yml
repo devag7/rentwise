@@ -63,8 +63,13 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
 
-            # Rebuild and restart the unified Next.js docker container
-            docker-compose up -d --build
+            # Prefer compose v2; the droplet's legacy v1 crashes with
+            # KeyError: 'ContainerConfig' when recreating containers in
+            # place, so with v1 we build first and then down/up.
+            if docker compose version >/dev/null 2>&1; then DC="docker compose"; else DC="docker-compose"; fi
+            $DC build
+            $DC down --remove-orphans
+            $DC up -d
 
             # Clean up old unused images to save space
             docker image prune -f
