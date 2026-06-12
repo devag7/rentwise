@@ -1,12 +1,9 @@
 services:
   rentwise-next:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
-        NEXT_PUBLIC_MAPBOX_TOKEN: ${NEXT_PUBLIC_MAPBOX_TOKEN}
+    # Image is built and pushed by GitHub Actions (.github/workflows/deploy.yml);
+    # the droplet only pulls. To build locally instead:
+    #   docker build -t ghcr.io/devag7/rentwise:latest .
+    image: ghcr.io/devag7/rentwise:latest
     container_name: rentwise_next_app
     restart: always
     ports:

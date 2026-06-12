@@ -13,17 +13,17 @@ concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  IMAGE: ghcr.io/devag7/rentwise
+
 jobs:
   ci:
     name: Lint, Typecheck & Build
     runs-on: ubuntu-latest
     env:
-      # Build-time placeholders — real values are injected on the droplet
-      # from its .env via docker-compose build args. NEXT_PUBLIC_* values
-      # are public by design; nothing secret is needed to compile.
-      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
-      NEXT_PUBLIC_MAPBOX_TOKEN: placeholder-mapbox-token
+      NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      NEXT_PUBLIC_MAPBOX_TOKEN: ${{ vars.NEXT_PUBLIC_MAPBOX_TOKEN }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -46,11 +46,51 @@ jobs:
       - name: Build
         run: npm run build
 
-  deploy:
-    name: Deploy to DigitalOcean Droplet
+  build-image:
+    name: Build & push image (GHCR)
     needs: ci
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
+          build-args: |
+            NEXT_PUBLIC_SUPABASE_URL=${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+            NEXT_PUBLIC_MAPBOX_TOKEN=${{ vars.NEXT_PUBLIC_MAPBOX_TOKEN }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to DigitalOcean Droplet
+    needs: build-image
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     steps:
       - name: Deploy to Droplet via SSH
         uses: appleboy/ssh-action@v1.2.4
@@ -58,24 +98,29 @@ jobs:
           host: ${{ secrets.HOST }}
           username: root
           password: ${{ secrets.PASSWORD }}
-          # Recommended hardening: switch to key auth (secrets.SSH_PRIVATE_KEY)
-          # and a non-root deploy user once available.
+          envs: GHCR_TOKEN,GHCR_USER
           script: |
             set -e
             cd /var/www/rentwise
             git fetch origin main
             git reset --hard origin/main
 
-            # Prefer compose v2; the droplet's legacy v1 crashes with
-            # KeyError: 'ContainerConfig' when recreating containers in
-            # place, so with v1 we build first and then down/up.
-            if docker compose version >/dev/null 2>&1; then DC="docker compose"; else DC="docker-compose"; fi
-            $DC build
-            $DC down --remove-orphans
-            $DC up -d
+            # Pull the prebuilt image instead of building on this box.
+            # GHCR_TOKEN is the short-lived workflow token (packages:read).
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
 
-            # Clean up old unused images to save space
+            if docker compose version >/dev/null 2>&1; then DC="docker compose"; else DC="docker-compose"; fi
+            $DC pull
+            # down/up instead of in-place recreate: legacy compose v1 crashes
+            # with KeyError: 'ContainerConfig' on recreate of OCI images.
+            $DC down --remove-orphans
+            $DC up -d --no-build
+
+            docker logout ghcr.io
             docker image prune -f
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
 
   smoke:
     name: Post-deploy smoke tests (live site)
