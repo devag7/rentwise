@@ -25,29 +25,27 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY || !APIFY_TOKEN) {
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 const apifyClient = new ApifyClient({ token: APIFY_TOKEN });
 
-const BANGALORE_RENT_URLS = [
-    // Example NoBroker search URLs for Bangalore (Indiranagar, Koramangala)
-    "https://www.nobroker.in/property/rent/bangalore/Indiranagar?searchParam=W3sibGF0IjoxMi45Nzg0LCJsb24iOjc3LjY0MDgsInBsYWNlSWQiOiJDaElKc1A5RktWUVdyanNSZW1HUFc3UzhYNUUiLCJwbGFjZU5hbWUiOiJJbmRpcmFuYWdhciIsInNob3dNYXAiOmZhbHNlfV0=&radius=2.0",
-    "https://www.nobroker.in/property/rent/bangalore/Koramangala?searchParam=W3sibGF0IjoxMi45MzUyLCJsb24iOjc3LjYyNDUsInBsYWNlSWQiOiJDaElKN1YtcUpKVVdyanNSeDBmU3d5Y2FfVzQiLCJwbGFjZU5hbWUiOiJLb3JhbWFuZ2FsYSIsInNob3dNYXAiOmZhbHNlfV0=&radius=2.0"
+const BANGALORE_LOCALITIES = [
+    'Indiranagar', 'Koramangala', 'HSR Layout', 'Whitefield', 'Marathahalli',
+    'Bellandur', 'Jayanagar', 'BTM Layout', 'Electronic City', 'Banashankari',
 ];
 
 interface ApifyItem {
-    id?: string | number;
-    propertyTitle?: string;
-    rent?: string | number;
-    url?: string;
-    locality?: string;
-    builtUpArea?: string | number;
-    propertyType?: string;
-    bathrooms?: string;
-    parking?: string | number;
+    listing_id?: string;
+    title?: string;
+    bhk?: number;
+    bathrooms?: number;
+    carpet_area_sqft?: number;
+    price_inr?: number;
     furnishing?: string;
-    description?: string;
-    ownerName?: string;
-    imageUrls?: string[];
-    imageUrl?: string;
+    locality?: string;
+    address?: string;
     latitude?: number;
     longitude?: number;
+    owner_name?: string;
+    images?: string[];
+    thumbnail?: string;
+    url?: string;
 }
 
 async function getAreaId(name: string): Promise<number | null> {
@@ -61,18 +59,16 @@ export async function runApifySync() {
     console.log('[APIFY SYNC] Starting automated property scraping via Apify...');
     
     const input = {
-        "urls": BANGALORE_RENT_URLS,
-        "max_items_per_url": 10,
-        "proxy": {
-            "useApifyProxy": true,
-            "apifyProxyGroups": ["RESIDENTIAL"],
-            "apifyProxyCountry": "IN"
-        }
+        searchMode: 'rent',
+        city: 'Bangalore',
+        localities: BANGALORE_LOCALITIES,
+        ownerOnly: false,
+        maxResults: 80,
     };
 
     try {
-        console.log('[APIFY SYNC] Calling ecomscrape/nobroker-property-search-scraper actor...');
-        const run = await apifyClient.actor('ecomscrape/nobroker-property-search-scraper').call(input);
+        console.log('[APIFY SYNC] Calling thirdwatch/nobroker-scraper actor (free)...');
+        const run = await apifyClient.actor('thirdwatch/nobroker-scraper').call(input);
         
         console.log(`[APIFY SYNC] Actor run finished. Run ID: ${run.id}. Fetching results...`);
         const { items } = await apifyClient.dataset(run.defaultDatasetId).listItems();
@@ -83,40 +79,47 @@ export async function runApifySync() {
         let updated = 0;
 
         for (const item of items as ApifyItem[]) {
-            // Safety checks
-            if (!item.propertyTitle || !item.rent || !item.url) continue;
+            // Safety checks — zero-fake-data policy: skip items missing essentials
+            if (!item.title || !item.price_inr || !item.url) continue;
 
-            const areaName = item.locality || 'Bangalore';
+            const areaName = (item.locality || 'Bangalore').trim();
             const areaId = await getAreaId(areaName);
             if (!areaId) continue;
 
-            // Map Apify item to Supabase schema
-            // NoBroker typically gives rent as string like "₹ 25,000", parse it
-            const rentRaw = String(item.rent).replace(/[^0-9]/g, '');
-            const rentNum = parseInt(rentRaw) || 0;
+            const rentNum = Math.round(item.price_inr);
+            if (rentNum < 3000 || rentNum > 1000000) continue;
 
-            const sizeRaw = String(item.builtUpArea || '0').replace(/[^0-9]/g, '');
-            const sizeNum = parseInt(sizeRaw) || 500;
+            const sizeNum = item.carpet_area_sqft && item.carpet_area_sqft > 50
+                ? Math.round(item.carpet_area_sqft)
+                : 500;
 
-            const externalId = `nobroker-${item.id || item.propertyTitle!.replace(/\s+/g, '').slice(0, 15)}`;
+            const externalId = `nobroker-${item.listing_id || item.title.replace(/\s+/g, '').slice(0, 15)}`;
+
+            // Normalize furnishing labels ("Semi" -> "Semi-Furnished")
+            const furnishing = item.furnishing
+                ? (item.furnishing.toLowerCase().startsWith('semi') ? 'Semi-Furnished'
+                    : item.furnishing.toLowerCase().startsWith('full') ? 'Furnished'
+                        : item.furnishing.toLowerCase().startsWith('un') ? 'Unfurnished'
+                            : item.furnishing)
+                : null;
 
             const row = {
                 area_id: areaId,
-                address: item.propertyTitle,
-                property_type: item.propertyType || '2BHK',
+                address: item.title,
+                property_type: item.bhk ? `${item.bhk}BHK` : '2BHK',
                 rent: rentNum,
                 size: sizeNum,
-                bathrooms: parseInt(item.bathrooms || '') || null,
-                parking: item.parking ? (String(item.parking).toLowerCase().includes('yes') || String(item.parking) !== '0') : null,
-                furnishing_status: item.furnishing || null,
-                description: item.description || `Property in ${areaName}`,
+                bathrooms: item.bathrooms && item.bathrooms > 0 && item.bathrooms < 10 ? item.bathrooms : null,
+                parking: null, // actor doesn't expose parking; never invent it
+                furnishing_status: furnishing,
+                description: item.address || `Property in ${areaName}`,
                 source: 'scraped',
                 source_url: item.url,
-                contact_name: item.ownerName || null,
+                contact_name: item.owner_name || null,
                 contact_phone: null, // Scraper might not provide phone without login
                 external_id: externalId,
                 scraped_at: new Date().toISOString(),
-                image_url: item.imageUrls ? item.imageUrls[0] : (item.imageUrl || ''),
+                image_url: item.images?.length ? item.images.slice(0, 4).join(',') : (item.thumbnail || ''),
                 google_maps_link: item.latitude && item.longitude ? `https://www.google.com/maps?q=${item.latitude},${item.longitude}` : '',
                 landlord_id: null
             };
