@@ -76,7 +76,7 @@ export default function PropertyReviews({ propertyId }: Props) {
                                 <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{review.date}</span>
                             </div>
 
-                            <p className="text-gray-300 text-sm leading-relaxed mb-3">"{review.text}"</p>
+                            <p className="text-gray-300 text-sm leading-relaxed mb-3">&ldquo;{review.text}&rdquo;</p>
 
                             <div className="flex text-gray-600">
                                 {[...Array(5)].map((_, i) => (

@@ -42,7 +42,7 @@ export default function TourScheduler({ propertyId }: Props) {
                 </div>
                 <h4 className="text-white font-bold tracking-widest uppercase mb-1">Tour Confirmed</h4>
                 <p className="text-[10px] text-gray-400 font-mono tracking-widest uppercase mb-4">
-                    {new Date(selectedDate).toLocaleDateString()} at {selectedTime}
+                    REF RW-{propertyId} &middot; {new Date(selectedDate).toLocaleDateString()} at {selectedTime}
                 </p>
                 <button
                     onClick={() => {

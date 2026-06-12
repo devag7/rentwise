@@ -18,17 +18,19 @@ services:
       - NEXT_PUBLIC_MAPBOX_TOKEN=${NEXT_PUBLIC_MAPBOX_TOKEN}
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       - APIFY_API_TOKEN=${APIFY_API_TOKEN}
+      - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL:-http://157.245.110.163:3009}
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ > /dev/null || exit 1"]
-      interval: 10s
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health > /dev/null || exit 1"]
+      interval: 15s
       timeout: 5s
       retries: 3
       start_period: 90s
-    deploy:
-      resources:
-        limits:
-          cpus: '0.8'
-          memory: 800M
-      update_config:
-        order: start-first
-        failure_action: rollback
+    # Real limits for plain docker-compose (the old `deploy:` block is
+    # swarm-only and was silently ignored)
+    cpus: 0.8
+    mem_limit: 800m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

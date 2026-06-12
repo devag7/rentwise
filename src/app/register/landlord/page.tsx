@@ -1,10 +1,11 @@
 'use client'
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
 import toast from 'react-hot-toast';
+import { track } from '@/utils/analytics';
 
 export default function RegisterLandlord() {
     const [email, setEmail] = useState('');
@@ -43,6 +44,7 @@ export default function RegisterLandlord() {
             if (data?.user?.identities?.length === 0) {
                 toast.error('An account with this email already exists.', { id: loadingToast });
             } else {
+                track('signup', { role: 'landlord' });
                 toast.success('Registration successful! Check your email to verify.', { id: loadingToast });
                 router.push('/login/landlord');
             }

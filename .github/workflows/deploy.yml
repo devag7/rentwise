@@ -1,35 +1,114 @@
-name: Deploy to DigitalOcean Droplet
+name: CI & Deploy
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  deploy:
+  ci:
+    name: Lint, Typecheck & Build
     runs-on: ubuntu-latest
     env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
+      # Build-time placeholders — real values are injected on the droplet
+      # from its .env via docker-compose build args. NEXT_PUBLIC_* values
+      # are public by design; nothing secret is needed to compile.
+      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+      NEXT_PUBLIC_MAPBOX_TOKEN: placeholder-mapbox-token
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+  deploy:
+    name: Deploy to DigitalOcean Droplet
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
       - name: Deploy to Droplet via SSH
-        uses: appleboy/ssh-action@v1.0.0
+        uses: appleboy/ssh-action@v1.2.4
         with:
           host: ${{ secrets.HOST }}
           username: root
           password: ${{ secrets.PASSWORD }}
-          # Alternatively, use SSH key if password auth is disabled:
-          # key: ${{ secrets.SSH_PRIVATE_KEY }}
+          # Recommended hardening: switch to key auth (secrets.SSH_PRIVATE_KEY)
+          # and a non-root deploy user once available.
           script: |
+            set -e
             cd /var/www/rentwise
-            git pull origin main
-            
-            # Rebuild and restart the unified Next.js docker container in the background
-            docker-compose down
+            git fetch origin main
+            git reset --hard origin/main
+
+            # Rebuild and restart the unified Next.js docker container
             docker-compose up -d --build
-            
+
             # Clean up old unused images to save space
             docker image prune -f
+
+  smoke:
+    name: Post-deploy smoke tests (live site)
+    needs: deploy
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Wait for app to become healthy
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS --max-time 5 "http://${{ secrets.HOST }}:3009/api/health" > /dev/null; then
+              echo "App healthy"; exit 0
+            fi
+            echo "Waiting for app... ($i/30)"; sleep 10
+          done
+          echo "App did not become healthy in time"; exit 1
+
+      - name: Run e2e smoke suite against production
+        env:
+          PLAYWRIGHT_BASE_URL: http://${{ secrets.HOST }}:3009
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

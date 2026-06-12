@@ -93,11 +93,15 @@ function MessagesContent() {
     }, [supabase, userId, activeContact]);
 
     useEffect(() => {
-        if (userId) fetchContacts();
+        if (!userId) return;
+        // Defer to a microtask so state updates happen asynchronously
+        // (avoids cascading renders from sync setState in effects)
+        void Promise.resolve().then(fetchContacts);
     }, [userId, fetchContacts]);
 
     useEffect(() => {
-        if (userId && activeContact) fetchMessages();
+        if (!userId || !activeContact) return;
+        void Promise.resolve().then(fetchMessages);
     }, [userId, activeContact, fetchMessages]);
 
     // Real-time subscription

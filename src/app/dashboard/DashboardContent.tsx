@@ -88,7 +88,8 @@ export default function DashboardContent() {
             .order('created_at', { ascending: false });
 
         if (!error && data) {
-            const formattedData: Property[] = data.map((item: any) => ({
+            type FavoriteRow = { properties: Property & { areas: { name: string } | null } };
+            const formattedData: Property[] = (data as unknown as FavoriteRow[]).map((item) => ({
                 ...item.properties,
                 area_name: item.properties.areas?.name || 'Unknown Area'
             }));

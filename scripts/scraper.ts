@@ -130,7 +130,7 @@ function extractPhone(sipro: string): string | null {
  * Tries ownerName, nameLabel, agentName fields in order.
  * Returns null if nothing real found — NEVER constructs a name.
  */
-function extractOwnerName(scriptText: string, i: number): string | null {
+export function extractOwnerName(scriptText: string, i: number): string | null {
     for (const field of ['ownerName', 'nameLabel', 'agentName']) {
         const matches = [...scriptText.matchAll(new RegExp(`"${field}"\\s*:\\s*"([^"]{2,80})"`, 'g'))].map(m => m[1].trim());
         const val = matches[i];
@@ -282,11 +282,12 @@ async function scrapeMagicBricks(area: AreaConfig): Promise<PropertyListing[]> {
 
         return listings;
 
-    } catch (err: any) {
-        if ([403, 503, 429].includes(err.response?.status)) {
-            console.warn(`[MB] ${area.name}: blocked (${err.response.status})`); 
+    } catch (err) {
+        const e = err as { response?: { status?: number }; message?: string };
+        if (e.response?.status && [403, 503, 429].includes(e.response.status)) {
+            console.warn(`[MB] ${area.name}: blocked (${e.response.status})`); 
         } else {
-            console.error(`\n[MB] ${area.name} error:`, err.message);
+            console.error(`\n[MB] ${area.name} error:`, e.message);
         }
         return [];
     }
@@ -357,7 +358,7 @@ export async function runScraper(): Promise<void> {
     for (const area of BANGALORE_AREAS) {
         console.log(`\n[SCRAPER] ${area.name}...`);
         let listings: PropertyListing[] = [];
-        try { listings = await scrapeMagicBricks(area); } catch (e: any) { console.error(e.message); }
+        try { listings = await scrapeMagicBricks(area); } catch (e) { console.error((e as Error).message); }
         totalFound += listings.length;
 
         if (!listings.length) {

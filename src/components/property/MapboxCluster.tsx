@@ -29,11 +29,13 @@ export default function MapboxCluster({ properties }: Props) {
 
     // Map properties to scatter them slightly if they are in the same area
     const mapData = useMemo(() => {
-        return properties.map(p => {
+        return properties.map((p, idx) => {
             const baseCoords = areaCoordinates[p.area_name] || [77.5946, 12.9716]; // Default to Bangalore center
-            // Add a tiny random offset to prevent perfect stacking
-            const offsetLon = (Math.random() - 0.5) * 0.01;
-            const offsetLat = (Math.random() - 0.5) * 0.01;
+            // Deterministic per-property offset to prevent perfect stacking
+            // (stable across renders, unlike Math.random)
+            const seed = (p.property_id ?? idx) * 2654435761 % 1000;
+            const offsetLon = ((seed % 100) / 100 - 0.5) * 0.01;
+            const offsetLat = ((Math.floor(seed / 100) % 100) / 100 - 0.5) * 0.01;
 
             return {
                 ...p,
@@ -79,7 +81,7 @@ export default function MapboxCluster({ properties }: Props) {
                         longitude={p.longitude}
                         latitude={p.latitude}
                         anchor="bottom"
-                        onClick={(e: any) => {
+                        onClick={(e: { originalEvent: MouseEvent }) => {
                             e.originalEvent.stopPropagation();
                             setSelectedProperty(p);
                         }}
