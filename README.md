@@ -1,6 +1,6 @@
 # RentWise 2.0 - Premium Real Estate Engine
 
-RentWise is a Next.js 15 powered real-estate platform designed with robust Server Components, fluid Framer Motion micro-animations, and a highly secure Supabase backend. It features an automated data ingestion pipeline powered by Apify to scrape properties in real-time.
+RentWise is a Next.js 16 powered real-estate platform designed with robust Server Components, fluid Framer Motion micro-animations, and a highly secure Supabase backend. It features an automated data ingestion pipeline powered by Apify to scrape properties in real-time.
 
 ## 🚀 Key Features
 - **Server-Side Rendered:** `app/properties/page.tsx` directly queries the database server-side for blisteringly fast SEO and load times.
@@ -58,3 +58,26 @@ If you ever want to force a scrape immediately without waiting for the schedule,
 ```bash
 docker exec -it rentwise_next_app npm run scrape
 ```
+
+---
+
+## ✅ CI/CD Pipeline
+
+Every push to `main` runs through `.github/workflows/deploy.yml`:
+
+1. **CI** — `npm run lint`, `npm run typecheck`, `npm run build` (placeholder env; real values live only on the droplet).
+2. **Deploy** — SSH into the droplet, `git reset --hard origin/main`, `docker-compose up -d --build` (no downtime `down` step).
+3. **Smoke** — waits for `/api/health`, then runs the Playwright e2e suite against the live site. A failed smoke run flags the deploy red in GitHub.
+
+Pull requests run the CI job only.
+
+## 🧪 Testing
+
+```bash
+npm run test:e2e                                          # against live droplet
+PLAYWRIGHT_BASE_URL=http://localhost:3000 npm run test:e2e # against local build
+```
+
+## 📊 Analytics
+
+First-party analytics events (page views, signups, logins) are written to the `analytics_events` Supabase table (`db/migrations/supabase_migration_phase11_analytics.sql` — run it once in the Supabase SQL editor). Query `analytics_daily_summary` for daily uniques per event.

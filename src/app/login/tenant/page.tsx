@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
 import toast from 'react-hot-toast';
+import { track } from '@/utils/analytics';
 
 export default function LoginTenant() {
     const [email, setEmail] = useState('');
@@ -36,7 +37,7 @@ export default function LoginTenant() {
         const loadingToast = toast.loading('Authenticating...');
 
         try {
-            const { data, error } = await supabase.auth.signInWithPassword({
+            const { error } = await supabase.auth.signInWithPassword({
                 email,
                 password,
             });
@@ -53,6 +54,7 @@ export default function LoginTenant() {
 
             router.refresh();
 
+            track('login', { role: 'tenant' });
             toast.success('Welcome back.', { id: loadingToast });
             router.push('/properties');
 

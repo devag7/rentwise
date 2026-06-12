@@ -52,7 +52,7 @@ export default function FilterBar() {
             [name]: newValue
         };
         
-        setFilters(newFilters as any);
+        setFilters(newFilters as typeof filters);
 
         // Update URL
         const current = new URLSearchParams(Array.from(searchParams.entries()));

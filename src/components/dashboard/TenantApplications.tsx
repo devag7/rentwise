@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { generateLeaseDocument } from '@/utils/generateLease';
 import PaymentModal from '@/components/property/PaymentModal';
@@ -25,26 +25,26 @@ export default function TenantApplications({ tenant_id }: { tenant_id: string })
     const [isLoading, setIsLoading] = useState(true);
     const [paymentModalApp, setPaymentModalApp] = useState<Application | null>(null);
 
-    const fetchApplications = useCallback(async () => {
-        setIsLoading(true);
-        const { data, error } = await supabase
+    useEffect(() => {
+        if (!tenant_id) return;
+        let cancelled = false;
+        supabase
             .from('applications')
             .select(`
                 *,
                 properties ( address, rent, landlord_id )
             `)
             .eq('tenant_id', tenant_id)
-            .order('created_at', { ascending: false });
-
-        if (!error && data) {
-            setApplications(data as Application[]);
-        }
-        setIsLoading(false);
+            .order('created_at', { ascending: false })
+            .then(({ data, error }) => {
+                if (cancelled) return;
+                if (!error && data) {
+                    setApplications(data as unknown as Application[]);
+                }
+                setIsLoading(false);
+            });
+        return () => { cancelled = true; };
     }, [supabase, tenant_id]);
-
-    useEffect(() => {
-        if (tenant_id) fetchApplications();
-    }, [tenant_id, fetchApplications]);
 
     if (isLoading) {
         return <div className="animate-pulse h-24 bg-[#111] border border-white/10 w-full mb-12"></div>;

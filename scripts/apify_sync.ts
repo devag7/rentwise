@@ -31,6 +31,25 @@ const BANGALORE_RENT_URLS = [
     "https://www.nobroker.in/property/rent/bangalore/Koramangala?searchParam=W3sibGF0IjoxMi45MzUyLCJsb24iOjc3LjYyNDUsInBsYWNlSWQiOiJDaElKN1YtcUpKVVdyanNSeDBmU3d5Y2FfVzQiLCJwbGFjZU5hbWUiOiJLb3JhbWFuZ2FsYSIsInNob3dNYXAiOmZhbHNlfV0=&radius=2.0"
 ];
 
+interface ApifyItem {
+    id?: string | number;
+    propertyTitle?: string;
+    rent?: string | number;
+    url?: string;
+    locality?: string;
+    builtUpArea?: string | number;
+    propertyType?: string;
+    bathrooms?: string;
+    parking?: string | number;
+    furnishing?: string;
+    description?: string;
+    ownerName?: string;
+    imageUrls?: string[];
+    imageUrl?: string;
+    latitude?: number;
+    longitude?: number;
+}
+
 async function getAreaId(name: string): Promise<number | null> {
     const { data } = await supabase.from('areas').select('area_id').eq('name', name).single();
     if (data?.area_id) return data.area_id;
@@ -63,7 +82,7 @@ export async function runApifySync() {
         let inserted = 0;
         let updated = 0;
 
-        for (const item of items as any[]) {
+        for (const item of items as ApifyItem[]) {
             // Safety checks
             if (!item.propertyTitle || !item.rent || !item.url) continue;
 
@@ -79,7 +98,7 @@ export async function runApifySync() {
             const sizeRaw = String(item.builtUpArea || '0').replace(/[^0-9]/g, '');
             const sizeNum = parseInt(sizeRaw) || 500;
 
-            const externalId = `nobroker-${item.id || item.propertyTitle.replace(/\s+/g, '').slice(0, 15)}`;
+            const externalId = `nobroker-${item.id || item.propertyTitle!.replace(/\s+/g, '').slice(0, 15)}`;
 
             const row = {
                 area_id: areaId,
@@ -87,7 +106,7 @@ export async function runApifySync() {
                 property_type: item.propertyType || '2BHK',
                 rent: rentNum,
                 size: sizeNum,
-                bathrooms: parseInt(item.bathrooms) || null,
+                bathrooms: parseInt(item.bathrooms || '') || null,
                 parking: item.parking ? (String(item.parking).toLowerCase().includes('yes') || String(item.parking) !== '0') : null,
                 furnishing_status: item.furnishing || null,
                 description: item.description || `Property in ${areaName}`,
@@ -120,11 +139,13 @@ export async function runApifySync() {
         console.log(`[APIFY SYNC] Upsert complete. Inserted: ${inserted}, Updated: ${updated}`);
     } catch (error) {
         console.error('[APIFY SYNC] Error running sync:', error);
-        process.exit(1);
+        // Re-throw so callers (cron.ts) can handle it without the whole
+        // process dying — process.exit here would kill the cron scheduler.
+        throw error;
     }
 }
 
 // Exported for cron.ts to use. If run directly:
 if (import.meta.url === `file://${process.argv[1]}`) {
-    runApifySync();
+    runApifySync().catch(() => process.exit(1));
 }

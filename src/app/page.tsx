@@ -22,7 +22,7 @@ export default function Home() {
             </div>
             <h1 className="text-6xl lg:text-8xl font-black tracking-tighter mb-8 leading-[1.1] text-white">
               Stop guessing. <br />
-              <span className="text-gray-500">KNOW what it's worth.</span>
+              <span className="text-gray-500">KNOW what it&apos;s worth.</span>
             </h1>
             <p className="text-xl lg:text-2xl text-gray-400 mb-12 leading-relaxed max-w-2xl font-light">
               RentWise uses billions of data points to evaluate properties in Bangalore. Find underpriced luxury and verified inventory instantly.

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import toast from 'react-hot-toast';
 import { generateLeaseDocument } from '@/utils/generateLease';
@@ -25,26 +25,26 @@ export default function LandlordApplications({ landlord_id }: { landlord_id: str
     const [applications, setApplications] = useState<Application[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    const fetchApplications = useCallback(async () => {
-        setIsLoading(true);
+    useEffect(() => {
+        if (!landlord_id) return;
+        let cancelled = false;
         // Supabase RLS policies already restrict Landlords to viewing only applications for their properties
-        const { data, error } = await supabase
+        supabase
             .from('applications')
             .select(`
                 *,
                 properties ( address, rent )
             `)
-            .order('created_at', { ascending: false });
-
-        if (!error && data) {
-            setApplications(data as Application[]);
-        }
-        setIsLoading(false);
-    }, [supabase]);
-
-    useEffect(() => {
-        if (landlord_id) fetchApplications();
-    }, [landlord_id, fetchApplications]);
+            .order('created_at', { ascending: false })
+            .then(({ data, error }) => {
+                if (cancelled) return;
+                if (!error && data) {
+                    setApplications(data as unknown as Application[]);
+                }
+                setIsLoading(false);
+            });
+        return () => { cancelled = true; };
+    }, [landlord_id, supabase]);
 
     const handleUpdateStatus = async (appId: number, status: 'approved' | 'rejected') => {
         const loadingToast = toast.loading('Executing status update...');
@@ -97,7 +97,7 @@ export default function LandlordApplications({ landlord_id }: { landlord_id: str
                                 {app.properties?.address}
                             </h4>
 
-                            <p className="text-gray-400 text-sm font-medium italic mb-3">"{app.intent_description}"</p>
+                            <p className="text-gray-400 text-sm font-medium italic mb-3">&ldquo;{app.intent_description}&rdquo;</p>
 
                             <div className="flex gap-6 text-[10px] font-mono text-gray-500 uppercase tracking-widest font-bold">
                                 <span>Move In: {new Date(app.move_in_date).toLocaleDateString()}</span>

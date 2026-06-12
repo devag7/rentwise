@@ -2,12 +2,37 @@ import type { Metadata } from 'next';
 import './globals.css';
 import Navbar from '@/components/Navbar';
 import { Toaster } from 'react-hot-toast';
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://157.245.110.163:3009';
+
 export const metadata: Metadata = {
-  title: 'RentWise - Premium Rentals in Bangalore',
-  description: 'Find your perfect rental with AI-powered insights.',
+  metadataBase: new URL(BASE_URL),
+  title: {
+    default: 'RentWise - Premium Rentals in Bangalore',
+    template: '%s | RentWise',
+  },
+  description:
+    'Find your perfect rental in Bangalore with verified listings, rent intelligence, commute analysis and zero brokerage noise.',
+  keywords: ['rentals', 'Bangalore', 'flats for rent', 'no broker', 'rent prices'],
+  openGraph: {
+    title: 'RentWise - Premium Rentals in Bangalore',
+    description:
+      'Verified Bangalore rental listings with rent intelligence and commute analysis.',
+    url: BASE_URL,
+    siteName: 'RentWise',
+    locale: 'en_IN',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'RentWise - Premium Rentals in Bangalore',
+    description:
+      'Verified Bangalore rental listings with rent intelligence and commute analysis.',
+  },
+  robots: { index: true, follow: true },
 };
 
 import { AppProvider } from '@/components/providers/AppContext';
+import AnalyticsTracker from '@/components/providers/AnalyticsTracker';
 
 export default function RootLayout({
   children,
@@ -18,6 +43,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased selection:bg-blue-200">
         <AppProvider>
+          <AnalyticsTracker />
           <Navbar />
           {children}
 
