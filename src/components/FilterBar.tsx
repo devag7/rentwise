@@ -23,6 +23,8 @@ export default function FilterBar() {
         parking: searchParams.get('parking') === 'true',
         sort_by: searchParams.get('sort_by') || "newest",
         source: searchParams.get('source') || "",
+        verdict: searchParams.get('verdict') || "",
+        posted_within: searchParams.get('posted_within') || "",
     });
 
     const [areas, setAreas] = useState<Area[]>([]);
@@ -139,8 +141,40 @@ export default function FilterBar() {
                     </div>
                 </div>
 
+                {/* Verdict filter — RentWise's signature: filter by how the
+                    rent compares to live market comps. No other portal does this. */}
+                <div className="relative">
+                    <span className="text-[10px] font-bold text-[#00A699] uppercase tracking-widest mb-2 block">Market Verdict</span>
+                    <select
+                        name="verdict"
+                        value={filters.verdict}
+                        onChange={handleChange}
+                        className="w-full bg-transparent text-white border-b border-gray-800 pb-2 focus:outline-none focus:border-[#00A699] transition-colors duration-300 text-sm font-medium appearance-none cursor-pointer"
+                    >
+                        <option value="" className="bg-[#111]">Any price</option>
+                        <option value="under" className="bg-[#111]">↓ Under market only</option>
+                        <option value="at" className="bg-[#111]">≈ At market</option>
+                        <option value="over" className="bg-[#111]">↑ Over market</option>
+                    </select>
+                </div>
+
                 {/* Advanced Filters */}
                 <div className="col-span-1 md:col-span-2 lg:col-span-2 grid grid-cols-1 sm:grid-cols-4 gap-6 pt-2 lg:pt-0">
+                    <div className="relative">
+                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 block">Posted</span>
+                        <select
+                            name="posted_within"
+                            value={filters.posted_within}
+                            onChange={handleChange}
+                            className="w-full bg-transparent text-white border-b border-gray-800 pb-2 focus:outline-none focus:border-[#00A699] transition-colors duration-300 text-sm font-medium appearance-none cursor-pointer"
+                        >
+                            <option value="" className="bg-[#111]">Any time</option>
+                            <option value="7" className="bg-[#111]">Last 7 days</option>
+                            <option value="30" className="bg-[#111]">Last 30 days</option>
+                            <option value="90" className="bg-[#111]">Last 90 days</option>
+                        </select>
+                    </div>
+
                     <div className="relative">
                         <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 block">Source</span>
                         <select

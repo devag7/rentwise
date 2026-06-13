@@ -1,7 +1,7 @@
 import { createClient } from '@/utils/supabase/server';
 import FilterBar from '@/components/FilterBar';
 import PropertiesList from './PropertiesList';
-import { computeMarketStats } from '@/utils/market';
+import { computeMarketStats, marketKey, getVerdict } from '@/utils/market';
 import { getHiddenPropertyIds } from '@/utils/reports';
 import WatchArea from '@/components/WatchArea';
 
@@ -34,6 +34,8 @@ export default async function Properties({
     const parking = params.parking as string;
     const source = params.source as string;
     const sort_by = params.sort_by as string || 'newest';
+    const verdict_filter = params.verdict as string;
+    const posted_within = params.posted_within as string;
 
     if (area_id) query = query.eq('area_id', area_id);
     if (property_type) query = query.eq('property_type', property_type);
@@ -42,6 +44,10 @@ export default async function Properties({
     if (furnishing_status) query = query.eq('furnishing_status', furnishing_status);
     if (parking === 'true') query = query.eq('parking', true);
     if (source) query = query.eq('source', source);
+    if (posted_within && /^\d+$/.test(posted_within)) {
+        const cutoff = new Date(Date.now() - parseInt(posted_within) * 86400000).toISOString();
+        query = query.gte('scraped_at', cutoff);
+    }
 
     // Sorting logic
     if (sort_by === 'price_asc') {
@@ -64,7 +70,7 @@ export default async function Properties({
 
     const marketStats = computeMarketStats(compRows || []);
 
-    const formattedData = data && !error
+    let formattedData = data && !error
         ? data
             .filter(item => !hidden.has(item.property_id)) // drop community-flagged listings
             .map(item => ({
@@ -73,12 +79,49 @@ export default async function Properties({
             }))
         : [];
 
+    // Verdict filter — RentWise's signature. Can't be a SQL filter because
+    // the verdict is computed against per-(area,type) medians.
+    if (verdict_filter) {
+        const want = verdict_filter === 'under' ? 'UNDER MARKET'
+            : verdict_filter === 'over' ? 'OVER MARKET'
+                : verdict_filter === 'at' ? 'AT MARKET' : null;
+        if (want) {
+            formattedData = formattedData.filter(p => {
+                const v = getVerdict(p.rent, marketStats[marketKey(p.area_id, p.property_type)]);
+                return v?.label === want;
+            });
+        }
+    }
+
+    // Live social proof, computed from real verdicts (not a vanity counter).
+    const totalAnalyzed = (compRows || []).length;
+    const underMarketNow = formattedData.filter(p => {
+        const v = getVerdict(p.rent, marketStats[marketKey(p.area_id, p.property_type)]);
+        return v?.label === 'UNDER MARKET';
+    }).length;
+
     return (
         <div className="w-full pt-32 pb-24 px-6 bg-[#0A0A0A] text-white min-h-screen selection:bg-[#FF385C] selection:text-white">
             <div className="max-w-7xl mx-auto">
-                <div className="mb-12">
+                <div className="mb-8">
                     <h2 className="text-sm font-bold tracking-widest text-[#FF385C] uppercase mb-4">Live Inventory</h2>
                     <h3 className="text-5xl font-black tracking-tighter text-white">Analyzed Properties.</h3>
+                </div>
+
+                {/* Social proof — computed live from real comps, not a vanity metric */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-px bg-white/10 border border-white/10 mb-12">
+                    <div className="bg-[#0A0A0A] p-5">
+                        <p className="text-3xl font-black text-white tracking-tighter">{totalAnalyzed.toLocaleString('en-IN')}</p>
+                        <p className="text-[10px] font-mono text-gray-500 uppercase tracking-widest mt-1">Listings priced</p>
+                    </div>
+                    <div className="bg-[#0A0A0A] p-5">
+                        <p className="text-3xl font-black text-[#00A699] tracking-tighter">{underMarketNow}</p>
+                        <p className="text-[10px] font-mono text-gray-500 uppercase tracking-widest mt-1">Under market now</p>
+                    </div>
+                    <div className="bg-[#0A0A0A] p-5 col-span-2 sm:col-span-1">
+                        <p className="text-3xl font-black text-white tracking-tighter">{Object.keys(marketStats).length}</p>
+                        <p className="text-[10px] font-mono text-gray-500 uppercase tracking-widest mt-1">Area·BHK markets tracked</p>
+                    </div>
                 </div>
 
                 <FilterBar />

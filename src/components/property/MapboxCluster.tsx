@@ -81,8 +81,8 @@ export default function MapboxCluster({ properties }: Props) {
                 {mapData.map(p => (
                     <Marker
                         key={`marker-${p.property_id}`}
-                        longitude={p.longitude}
-                        latitude={p.latitude}
+                        longitude={p.longitude!}
+                        latitude={p.latitude!}
                         anchor="bottom"
                         onClick={(e: { originalEvent: MouseEvent }) => {
                             e.originalEvent.stopPropagation();
