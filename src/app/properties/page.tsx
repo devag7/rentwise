@@ -45,6 +45,9 @@ export default async function Properties({
     if (parking === 'true') query = query.eq('parking', true);
     if (source) query = query.eq('source', source);
     if (posted_within && /^\d+$/.test(posted_within)) {
+        // Server Component: runs once per request, not in a render loop —
+        // Date.now() is safe here despite the react-hooks/purity rule.
+        // eslint-disable-next-line react-hooks/purity
         const cutoff = new Date(Date.now() - parseInt(posted_within) * 86400000).toISOString();
         query = query.gte('scraped_at', cutoff);
     }
