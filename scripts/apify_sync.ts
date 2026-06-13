@@ -125,6 +125,8 @@ export async function runApifySync() {
                 // publicly; the images[] array (original size) returns 404.
                 image_url: item.thumbnail || '',
                 google_maps_link: item.latitude && item.longitude ? `https://www.google.com/maps?q=${item.latitude},${item.longitude}` : '',
+                latitude: item.latitude ?? null,
+                longitude: item.longitude ?? null,
                 landlord_id: null
             };
 
@@ -137,7 +139,7 @@ export async function runApifySync() {
             if (existing) {
                 await supabase
                     .from('properties')
-                    .update({ scraped_at: row.scraped_at, rent: row.rent, image_url: row.image_url, deposit: row.deposit })
+                    .update({ scraped_at: row.scraped_at, rent: row.rent, image_url: row.image_url, deposit: row.deposit, latitude: row.latitude, longitude: row.longitude })
                     .eq('external_id', row.external_id);
                 updated++;
             } else {

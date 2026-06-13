@@ -25,20 +25,23 @@ const areaCoordinates: Record<string, [number, number]> = {
 };
 
 export default function MapboxCluster({ properties }: Props) {
-    const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
+    const [selectedProperty, setSelectedProperty] = useState<(Property & { exact?: boolean }) | null>(null);
 
-    // Map properties to scatter them slightly if they are in the same area
+    // Prefer real scraped coordinates; fall back to area-center with a
+    // deterministic offset only when a listing has no lat/lng.
     const mapData = useMemo(() => {
         return properties.map((p, idx) => {
+            if (p.latitude && p.longitude) {
+                return { ...p, exact: true };
+            }
             const baseCoords = areaCoordinates[p.area_name] || [77.5946, 12.9716]; // Default to Bangalore center
-            // Deterministic per-property offset to prevent perfect stacking
-            // (stable across renders, unlike Math.random)
             const seed = (p.property_id ?? idx) * 2654435761 % 1000;
             const offsetLon = ((seed % 100) / 100 - 0.5) * 0.01;
             const offsetLat = ((Math.floor(seed / 100) % 100) / 100 - 0.5) * 0.01;
 
             return {
                 ...p,
+                exact: false,
                 longitude: baseCoords[0] + offsetLon,
                 latitude: baseCoords[1] + offsetLat
             };
@@ -106,17 +109,25 @@ export default function MapboxCluster({ properties }: Props) {
                         maxWidth="300px"
                     >
                         <div className="bg-[#111] border border-white/10 p-0 rounded-none shadow-2xl overflow-hidden">
-                            {selectedProperty.image_data && (
+                            {(selectedProperty.image_url || selectedProperty.image_data) && (
                                 <img
-                                    src={`data:image/jpeg;base64,${selectedProperty.image_data}`}
+                                    src={
+                                        selectedProperty.image_url
+                                            ? selectedProperty.image_url.split(',')[0].trim()
+                                            : `data:image/jpeg;base64,${selectedProperty.image_data}`
+                                    }
                                     alt="Property Thumbnail"
                                     className="w-full h-32 object-cover"
+                                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
                                 />
                             )}
                             <div className="p-4">
                                 <h4 className="text-white font-bold text-sm truncate mb-1">{selectedProperty.address}</h4>
-                                <p className="text-[#00A699] text-xs font-bold tracking-widest uppercase mb-3 text-left">
+                                <p className="text-[#00A699] text-xs font-bold tracking-widest uppercase mb-1 text-left">
                                     {selectedProperty.property_type} • {selectedProperty.area_name}
+                                </p>
+                                <p className="text-gray-500 text-[9px] font-mono uppercase tracking-widest mb-3">
+                                    {selectedProperty.exact ? 'Exact location' : 'Approximate — area level'}
                                 </p>
                                 <Link
                                     href={`/properties/${selectedProperty.property_id}`}

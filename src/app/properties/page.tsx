@@ -2,6 +2,7 @@ import { createClient } from '@/utils/supabase/server';
 import FilterBar from '@/components/FilterBar';
 import PropertiesList from './PropertiesList';
 import { computeMarketStats } from '@/utils/market';
+import { getHiddenPropertyIds } from '@/utils/reports';
 import WatchArea from '@/components/WatchArea';
 
 export const metadata = {
@@ -55,17 +56,22 @@ export default async function Properties({
 
     // Market medians come from the FULL inventory (unfiltered) so verdicts
     // aren't distorted by whatever filters the user has applied.
-    const [{ data, error }, { data: compRows }] = await Promise.all([
+    const [{ data, error }, { data: compRows }, hidden] = await Promise.all([
         query,
         supabase.from('properties').select('area_id, property_type, rent'),
+        getHiddenPropertyIds(supabase),
     ]);
 
     const marketStats = computeMarketStats(compRows || []);
 
-    const formattedData = data && !error ? data.map(item => ({
-        ...item,
-        area_name: item.areas?.name || 'Unknown Area'
-    })) : [];
+    const formattedData = data && !error
+        ? data
+            .filter(item => !hidden.has(item.property_id)) // drop community-flagged listings
+            .map(item => ({
+                ...item,
+                area_name: item.areas?.name || 'Unknown Area'
+            }))
+        : [];
 
     return (
         <div className="w-full pt-32 pb-24 px-6 bg-[#0A0A0A] text-white min-h-screen selection:bg-[#FF385C] selection:text-white">

@@ -9,6 +9,7 @@ import NeighborhoodProfile from '@/components/property/NeighborhoodProfile';
 import PropertyReviews from '@/components/property/PropertyReviews';
 import PropertyCard, { Property } from '@/components/PropertyCard';
 import ShareListing from '@/components/property/ShareListing';
+import ReportListing from '@/components/property/ReportListing';
 import { computeMarketStats, marketKey, getVerdict } from '@/utils/market';
 
 // Heuristic fallback when too few real comps exist
@@ -297,6 +298,11 @@ export default async function PropertyDetails({ params }: { params: Promise<{ id
 
                     {/* Multimedia Hub (Virtual Tour & Location) */}
                     <InteractiveMediaLinks google_maps_link={formattedProperty.google_maps_link} />
+
+                    {/* Community trust — flag bad listings */}
+                    <div className="pt-2">
+                        <ReportListing propertyId={formattedProperty.property_id} />
+                    </div>
                 </div>
 
                 {/* Right Column: Pricing & Action — NOT sticky to prevent overlap */}

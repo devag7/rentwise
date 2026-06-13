@@ -21,8 +21,8 @@ export interface Property {
     deposit?: number;
     parking?: boolean;
     furnishing_status?: string;
-    longitude?: number;
-    latitude?: number;
+    longitude?: number | null;
+    latitude?: number | null;
     source?: string;
     source_url?: string;
     contact_name?: string;
