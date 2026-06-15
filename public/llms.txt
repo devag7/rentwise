@@ -19,7 +19,8 @@
 
 ## Key pages
 
-- /properties — live, filterable inventory with map view (no login needed)
+- /insights — Bangalore Rent Index: median rent by area and BHK from real listings (unique to RentWise)
+- /properties — live, filterable inventory with map view (no login needed); filter by market verdict (under/at/over market)
 - /properties/{id} — listing detail with fair-rent verdict, comps count,
   commute analyzer, affordability calculator, neighborhood profile
 - /register — tenant and landlord signup (separate roles)
