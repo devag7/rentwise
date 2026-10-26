@@ -1,4 +1,4 @@
-name: CI & Deploy
+name: CI (+ legacy droplet deploy)
 
 on:
   push:
@@ -49,7 +49,8 @@ jobs:
   build-image:
     name: Build & push image (GHCR)
     needs: ci
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Production now runs on Vercel. Set repo variable DEPLOY_DROPLET=true to keep the droplet too.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY_DROPLET == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -86,7 +87,7 @@ jobs:
   deploy:
     name: Deploy to DigitalOcean Droplet
     needs: build-image
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY_DROPLET == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -125,7 +126,7 @@ jobs:
   smoke:
     name: Post-deploy smoke tests (live site)
     needs: deploy
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY_DROPLET == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code

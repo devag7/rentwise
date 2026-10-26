@@ -3,6 +3,11 @@
  * 
  * Automates the extraction of properties using the Apify NoBroker scraper.
  * Pushes the sanitized results into the Supabase 'properties' table.
+ *
+ * Primary pipeline is now supabase/functions/sync-nobroker (pg_cron); this
+ * script is the Docker fallback and follows the same zero-fake-data rules:
+ * no default BHK (row skipped), no default size (null), and owner
+ * names / phone numbers are never stored.
  */
 
 import { ApifyClient } from 'apify-client';
@@ -43,7 +48,6 @@ interface ApifyItem {
     address?: string;
     latitude?: number;
     longitude?: number;
-    owner_name?: string;
     images?: string[];
     thumbnail?: string;
     url?: string;
@@ -83,16 +87,24 @@ export async function runApifySync() {
             // Safety checks — zero-fake-data policy: skip items missing essentials
             if (!item.title || !item.price_inr || !item.url) continue;
 
-            const areaName = (item.locality || 'Bangalore').trim();
+            // No locality → can't be placed in a market; don't invent a 'Bangalore' area.
+            const areaName = (item.locality || '').trim();
+            if (!areaName) continue;
             const areaId = await getAreaId(areaName);
             if (!areaId) continue;
 
             const rentNum = Math.round(item.price_inr);
             if (rentNum < 3000 || rentNum > 1000000) continue;
 
+            // Zero-fake-data: no BHK → skip; no carpet area → null (never estimated).
+            const propertyType = item.title && /\b1\s*-?\s*RK\b/i.test(item.title) ? '1RK'
+                : item.bhk && Number.isInteger(item.bhk) && item.bhk >= 1 && item.bhk <= 9 ? `${item.bhk}BHK`
+                    : null;
+            if (!propertyType) continue;
+
             const sizeNum = item.carpet_area_sqft && item.carpet_area_sqft > 50
                 ? Math.round(item.carpet_area_sqft)
-                : 500;
+                : null;
 
             const externalId = `nobroker-${item.listing_id || item.title.replace(/\s+/g, '').slice(0, 15)}`;
 
@@ -107,7 +119,7 @@ export async function runApifySync() {
             const row = {
                 area_id: areaId,
                 address: item.title,
-                property_type: item.bhk ? `${item.bhk}BHK` : '2BHK',
+                property_type: propertyType,
                 rent: rentNum,
                 size: sizeNum,
                 bathrooms: item.bathrooms && item.bathrooms > 0 && item.bathrooms < 10 ? item.bathrooms : null,
@@ -117,10 +129,12 @@ export async function runApifySync() {
                 description: item.address || `Property in ${areaName}`,
                 source: 'scraped',
                 source_url: item.url,
-                contact_name: item.owner_name || null,
-                contact_phone: null, // Scraper might not provide phone without login
+                contact_name: null,  // personal data — never stored
+                contact_phone: null,
                 external_id: externalId,
                 scraped_at: new Date().toISOString(),
+                last_seen_at: new Date().toISOString(),
+                is_active: true,
                 // NoBroker only serves the assets.nobroker.in "medium" thumbnail
                 // publicly; the images[] array (original size) returns 404.
                 image_url: item.thumbnail || '',
@@ -139,7 +153,18 @@ export async function runApifySync() {
             if (existing) {
                 await supabase
                     .from('properties')
-                    .update({ scraped_at: row.scraped_at, rent: row.rent, image_url: row.image_url, deposit: row.deposit, latitude: row.latitude, longitude: row.longitude })
+                    .update({
+                        scraped_at: row.scraped_at,
+                        last_seen_at: row.last_seen_at,
+                        is_active: true,
+                        rent: row.rent,
+                        image_url: row.image_url,
+                        deposit: row.deposit,
+                        latitude: row.latitude,
+                        longitude: row.longitude,
+                        contact_name: null,
+                        contact_phone: null,
+                    })
                     .eq('external_id', row.external_id);
                 updated++;
             } else {

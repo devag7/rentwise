@@ -76,6 +76,11 @@ export default function Navbar() {
                             Rent Index
                         </Link>
                     </li>
+                    <li>
+                        <Link href="/check" className={pathname === '/check' ? "text-[#00A699] block" : "text-gray-400 hover:text-[#00A699] transition-colors block"}>
+                            Check Rent
+                        </Link>
+                    </li>
 
                     {!loading && user && user.user_metadata?.role === 'landlord' && (
                         <li>

@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { generateLeaseDocument } from '@/utils/generateLease';
-import PaymentModal from '@/components/property/PaymentModal';
 
 interface Application {
     application_id: number;
@@ -23,7 +22,6 @@ export default function TenantApplications({ tenant_id }: { tenant_id: string })
     const supabase = createClient();
     const [applications, setApplications] = useState<Application[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [paymentModalApp, setPaymentModalApp] = useState<Application | null>(null);
 
     useEffect(() => {
         if (!tenant_id) return;
@@ -104,33 +102,15 @@ export default function TenantApplications({ tenant_id }: { tenant_id: string })
                                     className="w-full px-4 py-3 bg-[#00A699]/10 text-[#00A699] border border-[#00A699]/30 hover:bg-[#00A699] hover:text-white transition-colors text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                                    Generate Official Lease
+                                    Download draft agreement
                                 </button>
 
-                                <button
-                                    onClick={() => setPaymentModalApp(app)}
-                                    className="w-full px-4 py-3 bg-[#FF385C]/10 text-[#FF385C] border border-[#FF385C]/30 hover:bg-[#FF385C] hover:text-white transition-colors text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
-                                    Pay Security Deposit
-                                </button>
                             </div>
                         )}
                     </div>
                 ))}
             </div>
 
-            {paymentModalApp && paymentModalApp.properties && (
-                <PaymentModal
-                    amount={paymentModalApp.properties.rent * 2} // 2 months deposit
-                    address={paymentModalApp.properties.address}
-                    onClose={() => setPaymentModalApp(null)}
-                    onSuccess={() => {
-                        // In a real app we'd update deposit_paid status in DB
-                        console.log("Mock Payment Recorded for", paymentModalApp.application_id);
-                    }}
-                />
-            )}
         </div>
     );
 }

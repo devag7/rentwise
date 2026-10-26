@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import toast from 'react-hot-toast';
 import { track } from '@/utils/analytics';
@@ -15,9 +15,8 @@ interface Area {
  * Stores the intent in area_watches (insert-only RLS); alert emails ship
  * when the mailer lands (SCALE_PLAN Phase 2).
  */
-export default function WatchArea() {
+export default function WatchArea({ areas }: { areas: Area[] }) {
     const supabase = createClient();
-    const [areas, setAreas] = useState<Area[]>([]);
     const [email, setEmail] = useState('');
     const [areaId, setAreaId] = useState('');
     const [maxRent, setMaxRent] = useState('');
@@ -25,15 +24,6 @@ export default function WatchArea() {
     const [submitting, setSubmitting] = useState(false);
     const [done, setDone] = useState(false);
 
-    useEffect(() => {
-        supabase
-            .from('areas')
-            .select('area_id, name')
-            .order('name')
-            .then(({ data }) => {
-                if (data) setAreas(data);
-            });
-    }, [supabase]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -145,7 +135,7 @@ export default function WatchArea() {
                 </button>
             </form>
             <p className="mt-4 text-[10px] font-mono text-gray-600 uppercase tracking-widest">
-                Private — never shown publicly. Delete anytime by replying to any alert.
+                Private — never shown publicly. Every alert has a one-click unsubscribe link.
             </p>
         </div>
     );

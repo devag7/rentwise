@@ -13,6 +13,12 @@ export async function updateSession(request: NextRequest) {
     // skip the session refresh and serve the page.
     if (!url || !key) return supabaseResponse
 
+    // Anonymous visitors have no Supabase auth cookie — skip the network
+    // round trip to Supabase Auth on every page view.
+    if (!request.cookies.getAll().some(c => c.name.startsWith('sb-') && c.name.includes('auth-token'))) {
+        return supabaseResponse
+    }
+
     const supabase = createServerClient(
         url,
         key,

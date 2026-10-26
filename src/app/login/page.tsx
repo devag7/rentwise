@@ -1,4 +1,5 @@
 
+export const metadata = { title: 'Log in', alternates: { canonical: '/login' } };
 import Link from 'next/link';
 
 export default function LoginHub() {

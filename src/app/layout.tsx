@@ -1,22 +1,28 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
 import Navbar from '@/components/Navbar';
 import { Toaster } from 'react-hot-toast';
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://157.245.110.163:3009';
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://rentwise.devshipit.com';
+
+// Self-hosted at build time — no render-blocking request to Google Fonts.
+const inter = Inter({ subsets: ['latin'], display: 'swap', variable: '--font-inter' });
+
+export const viewport: Viewport = { themeColor: '#0A0A0A' };
 
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
   title: {
-    default: 'RentWise - Premium Rentals in Bangalore',
+    default: 'RentWise — fair rent for every Bangalore flat',
     template: '%s | RentWise',
   },
   description:
-    'Find your perfect rental in Bangalore with verified listings, rent intelligence, commute analysis and zero brokerage noise.',
+    'Bangalore rent intelligence: fair-rent verdicts from real comparable listings, a public rent index, and a free rent checker. No brokers, no login to browse.',
   keywords: ['rentals', 'Bangalore', 'flats for rent', 'no broker', 'rent prices'],
   openGraph: {
-    title: 'RentWise - Premium Rentals in Bangalore',
+    title: 'RentWise — fair rent for every Bangalore flat',
     description:
-      'Verified Bangalore rental listings with rent intelligence and commute analysis.',
+      'Every Bangalore listing priced against real comparable listings. Check any rent in seconds.',
     url: BASE_URL,
     siteName: 'RentWise',
     locale: 'en_IN',
@@ -24,9 +30,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'RentWise - Premium Rentals in Bangalore',
+    title: 'RentWise — fair rent for every Bangalore flat',
     description:
-      'Verified Bangalore rental listings with rent intelligence and commute analysis.',
+      'Every Bangalore listing priced against real comparable listings. Check any rent in seconds.',
   },
   robots: { index: true, follow: true },
 };
@@ -56,7 +62,7 @@ export default function RootLayout({
         url: BASE_URL,
         potentialAction: {
           '@type': 'SearchAction',
-          target: `${BASE_URL}/properties?area_id={search_term_string}`,
+          target: `${BASE_URL}/check?q={search_term_string}`,
           'query-input': 'required name=search_term_string',
         },
       },
@@ -64,8 +70,8 @@ export default function RootLayout({
   };
 
   return (
-    <html lang="en">
-      <body className="antialiased selection:bg-blue-200">
+    <html lang="en-IN" className={inter.variable}>
+      <body className="antialiased bg-[#0A0A0A]">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}

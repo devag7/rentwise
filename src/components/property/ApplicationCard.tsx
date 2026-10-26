@@ -1,283 +1,213 @@
 'use client'
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
 import toast from 'react-hot-toast';
+import { useAppContext } from '@/components/providers/AppContext';
+import { track } from '@/utils/analytics';
+import { formatINR, type Verdict } from '@/utils/market';
 
 interface Props {
     property_id: number;
-    landlord_id: string;
+    landlord_id: string | null;
     rent: number;
     landlord_phone: string | null;
-    predictedPrice: number;
-    isGoodDeal: boolean;
-    differencePercent: string;
+    verdict: Verdict | null;
+    p25?: number;
+    p75?: number;
     source?: string;
     source_url?: string;
-    contact_name?: string;
-    contact_phone?: string;
 }
 
-export default function ApplicationCard({ property_id, landlord_id, rent, landlord_phone, predictedPrice, isGoodDeal, differencePercent, source, source_url, contact_name, contact_phone }: Props) {
-    const supabase = createClient();
-    const [userId, setUserId] = useState<string | null>(null);
-    const [userRole, setUserRole] = useState<string | null>(null);
+const MAX_KYC_BYTES = 2 * 1024 * 1024;
+
+export default function ApplicationCard({ property_id, landlord_id, rent, landlord_phone, verdict, p25, p75, source, source_url }: Props) {
+    const { user, role } = useAppContext();
     const [isApplying, setIsApplying] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
-
     const [intent, setIntent] = useState('');
     const [moveDate, setMoveDate] = useState('');
     const [kycFile, setKycFile] = useState<File | null>(null);
-
-    useEffect(() => {
-        const checkUser = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                setUserId(session.user.id);
-                setUserRole(session.user.user_metadata?.role || 'tenant');
-            }
-        };
-        checkUser();
-    }, [supabase]);
+    const [phoneShown, setPhoneShown] = useState(false);
 
     const handleKycChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) {
-            if (file.size > 2 * 1024 * 1024) {
-                toast.error('KYC Document must be less than 2MB');
-                e.target.value = '';
-                return;
-            }
-            if (!file.type.match(/image\/(jpeg|jpg|png)|application\/pdf/)) {
-                toast.error('Only JPG/PNG or PDF documents allowed');
-                e.target.value = '';
-                return;
-            }
-            setKycFile(file);
+        if (!file) return;
+        if (file.size > MAX_KYC_BYTES) {
+            toast.error('Document must be under 2MB.');
+            e.target.value = '';
+            return;
         }
+        if (!/^(image\/(jpeg|png)|application\/pdf)$/.test(file.type)) {
+            toast.error('Only JPG, PNG or PDF.');
+            e.target.value = '';
+            return;
+        }
+        setKycFile(file);
     };
 
     const submitApplication = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!userId) {
-            toast.error("You must be logged in as a Tenant to apply.");
+        if (!user) {
+            toast.error('Log in as a tenant to apply.');
             return;
         }
-
+        const supabase = createClient();
         setIsApplying(true);
-        const loadingToast = toast.loading('Encrypting and submitting application...');
-
+        const t = toast.loading('Submitting application…');
         try {
-            let kyc_document_url = null;
-
+            let kyc_document_url: string | null = null;
             if (kycFile) {
-                const fileName = `${userId}-${property_id}-${Date.now()}`;
-                const { data: uploadData, error: uploadError } = await supabase.storage
-                    .from('kyc_documents')
-                    .upload(fileName, kycFile);
-
+                // Private bucket: store the object path; landlords open it via a signed URL.
+                const ext = kycFile.name.split('.').pop()?.toLowerCase() || 'bin';
+                const path = `${user.id}/${property_id}-${Date.now()}.${ext}`;
+                const { error: uploadError } = await supabase.storage.from('kyc_documents').upload(path, kycFile);
                 if (uploadError) throw uploadError;
-
-                const { data: { publicUrl } } = supabase.storage
-                    .from('kyc_documents')
-                    .getPublicUrl(uploadData.path);
-
-                kyc_document_url = publicUrl;
+                kyc_document_url = path;
             }
-
-            const { error } = await supabase
-                .from('applications')
-                .insert({
-                    property_id,
-                    tenant_id: userId,
-                    intent_description: intent,
-                    move_in_date: moveDate,
-                    kyc_document_url
-                });
-
+            const { error } = await supabase.from('applications').insert({
+                property_id,
+                tenant_id: user.id,
+                intent_description: intent,
+                move_in_date: moveDate,
+                kyc_document_url,
+            });
             if (error) throw error;
-
-            toast.success('Official application submitted to Landlord.', { id: loadingToast });
+            track('application_submitted', { property_id });
+            toast.success('Application sent to the landlord.', { id: t });
             setIsModalOpen(false);
             setIntent('');
             setMoveDate('');
             setKycFile(null);
-
-        } catch (err: unknown) {
-            toast.error(((err as Error).message || 'Something went wrong'), { id: loadingToast });
+        } catch (err) {
+            toast.error((err as Error).message || 'Something went wrong', { id: t });
         } finally {
             setIsApplying(false);
         }
     };
 
+    const revealPhone = () => {
+        setPhoneShown(true);
+        track('contact_revealed', { property_id });
+    };
+
+    const verdictTone = !verdict ? '' : verdict.label === 'OVER MARKET'
+        ? 'bg-[#FF385C]/10 text-[#FF385C] border-[#FF385C]/30'
+        : verdict.label === 'UNDER MARKET'
+            ? 'bg-[#00A699]/10 text-[#00A699] border-[#00A699]/30'
+            : 'bg-white/5 text-gray-200 border-white/20';
+
     return (
-        <div className="bg-[#050505] p-8 border border-white/10 h-fit flex flex-col mt-12 md:mt-0">
-
-            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Asking Valuation</p>
+        <div className="bg-[#050505] p-6 sm:p-8 border border-white/10 h-fit flex flex-col">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Asking rent</p>
             <div className="flex items-end mb-8">
-                <span className="text-5xl font-black text-white tracking-tighter leading-none">
-                    ₹{rent.toLocaleString('en-IN')}
-                </span>
-                <span className="text-gray-500 font-bold text-xs tracking-widest uppercase ml-2 mb-1">/ Month</span>
+                <span className="text-5xl font-black text-white tracking-tighter leading-none">{formatINR(rent)}</span>
+                <span className="text-gray-400 font-bold text-xs tracking-widest uppercase ml-2 mb-1">/ month</span>
             </div>
 
-            {/* AI Analysis Block */}
-            <div className="mb-10 bg-[#0A0A0A] border border-white/5 p-6 relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-1 h-full bg-[#00A699]"></div>
-                <h4 className="text-[10px] font-bold text-[#00A699] uppercase tracking-widest mb-4 flex items-center">
-                    <span className="w-2 h-2 bg-[#00A699] rounded-full animate-pulse mr-2"></span>
-                    AI Market Analysis
-                </h4>
-
-                <div className="flex justify-between items-end mb-4">
-                    <span className="text-gray-400 font-medium text-sm">Estimated Fair Value</span>
-                    <span className="text-2xl font-bold text-white tracking-tight">₹{predictedPrice.toLocaleString('en-IN')}</span>
-                </div>
-
-                <div className={`flex items-center p-3 border text-[10px] font-bold tracking-widest uppercase ${isGoodDeal
-                    ? 'bg-[#00A699]/10 text-[#00A699] border-[#00A699]/30'
-                    : 'bg-[#FF385C]/10 text-[#FF385C] border-[#FF385C]/30'
-                    }`}>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        {isGoodDeal
-                            ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                            : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        }
-                    </svg>
-                    <span>
-                        {isGoodDeal ? `Priced ${differencePercent}% Below Market` : `Priced ${differencePercent}% Above Market`}
-                    </span>
-                </div>
+            <div className="mb-8 bg-[#0A0A0A] border border-white/5 p-6 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-1 h-full bg-[#00A699]" />
+                <h2 className="text-[10px] font-bold text-[#00A699] uppercase tracking-widest mb-4">Fair-rent check</h2>
+                {verdict ? (
+                    <>
+                        <div className="flex justify-between items-end mb-2">
+                            <span className="text-gray-400 text-sm">Market median</span>
+                            <span className="text-2xl font-bold text-white tracking-tight">{formatINR(verdict.median)}</span>
+                        </div>
+                        {p25 && p75 ? (
+                            <div className="flex justify-between items-end mb-4">
+                                <span className="text-gray-400 text-xs">Typical range</span>
+                                <span className="text-sm font-mono text-gray-300">{formatINR(p25)} – {formatINR(p75)}</span>
+                            </div>
+                        ) : null}
+                        <div className={`p-3 border text-[10px] font-bold tracking-widest uppercase ${verdictTone}`}>
+                            {verdict.label === 'AT MARKET' ? 'Priced at market' : `Priced ${verdict.percent}% ${verdict.label === 'UNDER MARKET' ? 'below' : 'above'} market`}
+                        </div>
+                        <p className="mt-3 text-[10px] font-mono text-gray-500 uppercase tracking-widest">Based on {verdict.count} comparable listings, same area &amp; BHK</p>
+                    </>
+                ) : (
+                    <p className="text-sm text-gray-400 leading-relaxed">
+                        Not enough comparable listings in this area and configuration to call a fair price yet. We only show a verdict when at least 3 real comps exist.
+                    </p>
+                )}
             </div>
 
-            {/* Action Area */}
             <div className="flex flex-col gap-3">
                 {source === 'scraped' ? (
                     <>
-                        {/* External listing — no Apply/Message */}
-                        <div className="w-full py-4 px-4 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-center">
-                            <p className="text-[10px] font-bold uppercase tracking-widest mb-1">External Listing</p>
-                            <p className="text-[9px] font-mono text-amber-500/70 uppercase tracking-wider">Booking unavailable — not registered on platform</p>
-                        </div>
+                        <p className="text-[11px] text-amber-400/90 leading-relaxed">
+                            Listed on an external portal. Contact and booking happen on the original listing.
+                        </p>
                         {source_url && (
                             <a
                                 href={source_url}
                                 target="_blank"
-                                rel="noopener noreferrer"
-                                className="w-full py-4 px-4 bg-white text-black font-bold text-xs uppercase tracking-widest text-center transition-all duration-300 hover:bg-amber-500 hover:text-white inline-block"
+                                rel="noopener noreferrer nofollow"
+                                onClick={() => track('source_clicked', { property_id })}
+                                className="w-full py-4 px-4 bg-white text-black font-bold text-xs uppercase tracking-widest text-center hover:bg-amber-500 hover:text-white transition-colors"
                             >
-                                View Original Listing →
+                                View original listing →
                             </a>
                         )}
-                        {/* Contact info — gated behind auth */}
-                        {userId ? (
-                            <div className="mt-2 p-4 bg-[#0A0A0A] border border-white/5">
-                                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Contact Information</p>
-                                {contact_name && <p className="text-sm font-medium text-white">{contact_name}</p>}
-                                {contact_phone && <p className="text-xs font-mono text-gray-400 mt-1">{contact_phone}</p>}
-                                {landlord_phone && <p className="text-xs font-mono text-gray-400 mt-1">{landlord_phone}</p>}
-                            </div>
-                        ) : (
-                            <div className="mt-2 p-4 bg-[#0A0A0A] border border-white/5 text-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                </svg>
-                                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Login to view contact details</p>
-                            </div>
-                        )}
                     </>
-                ) : userRole === 'landlord' ? (
-                    <button disabled className="w-full py-5 px-4 bg-white/5 text-gray-500 font-bold text-xs uppercase tracking-widest cursor-not-allowed border border-white/10">
-                        Admin Restricted Action
-                    </button>
+                ) : role === 'landlord' ? (
+                    <p className="w-full py-4 px-4 bg-white/5 text-gray-400 text-xs text-center border border-white/10">Landlord accounts can&apos;t apply to listings.</p>
                 ) : (
                     <>
                         <button
-                            onClick={() => setIsModalOpen(true)}
-                            className="w-full py-4 px-4 bg-white text-black font-bold text-xs uppercase tracking-widest text-center transition-all duration-300 hover:bg-[#00A699] hover:text-white inline-block"
+                            onClick={() => (user ? setIsModalOpen(true) : toast.error('Log in as a tenant to apply.'))}
+                            className="w-full py-4 px-4 bg-white text-black font-bold text-xs uppercase tracking-widest text-center hover:bg-[#00A699] hover:text-white transition-colors"
                         >
-                            Official Application
+                            Apply to rent
                         </button>
-                        <a
-                            href={`/messages?user=${landlord_id}`}
-                            className="w-full py-4 px-4 bg-transparent border border-white/20 text-white font-bold text-xs uppercase tracking-widest text-center transition-all duration-300 hover:border-[#FF385C] hover:text-[#FF385C] inline-block"
-                        >
-                            Direct Message
-                        </a>
+                        {landlord_id && (
+                            <Link
+                                href={`/messages?user=${landlord_id}`}
+                                className="w-full py-4 px-4 border border-white/20 text-white font-bold text-xs uppercase tracking-widest text-center hover:border-[#FF385C] hover:text-[#FF385C] transition-colors"
+                            >
+                                Message landlord
+                            </Link>
+                        )}
+                        {landlord_phone && (user ? (
+                            phoneShown
+                                ? <a href={`tel:${landlord_phone}`} className="text-center text-sm font-mono text-white mt-2">{landlord_phone}</a>
+                                : <button onClick={revealPhone} className="text-center text-[10px] font-bold text-gray-300 uppercase tracking-widest mt-2 hover:text-white">Show phone number</button>
+                        ) : (
+                            <Link href="/login/tenant" className="text-center text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-2 hover:text-white">Log in to see the phone number</Link>
+                        ))}
                     </>
-                )}
-
-                {/* Contact info for platform listings — gated behind auth */}
-                {source !== 'scraped' && userId && landlord_phone && (
-                    <p className="text-center text-[10px] font-mono font-medium text-gray-500 uppercase tracking-widest mt-2">
-                        Direct Line / Support: {landlord_phone}
-                    </p>
-                )}
-                {source !== 'scraped' && !userId && landlord_phone && (
-                    <p className="text-center text-[10px] font-mono font-medium text-gray-600 uppercase tracking-widest mt-2">
-                        🔒 Login to view contact info
-                    </p>
                 )}
             </div>
 
-            {/* Application Formal Modal */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" role="dialog" aria-modal="true" aria-labelledby="apply-title">
                     <div className="w-full max-w-md bg-[#111] border border-white/20 p-8 relative">
-                        <button onClick={() => setIsModalOpen(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-
-                        <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-3">
-                            <span className="w-2 h-2 bg-[#00A699] rounded-full animate-pulse"></span>
-                            <span className="uppercase tracking-widest">Application Vault</span>
-                        </h2>
-                        <p className="text-gray-500 font-mono text-xs uppercase tracking-widest mb-6 border-b border-white/10 pb-4">Secure Tenant Submission protocol</p>
-
+                        <button onClick={() => setIsModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white" aria-label="Close">✕</button>
+                        <h2 id="apply-title" className="text-xl font-bold text-white mb-6 uppercase tracking-widest">Apply to rent</h2>
                         <form onSubmit={submitApplication} className="space-y-6">
-                            <div className="flex flex-col relative">
-                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Intent Description</label>
-                                <textarea
-                                    value={intent}
-                                    onChange={(e) => setIntent(e.target.value)}
-                                    placeholder="Brief background and intent to rent..."
-                                    className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors placeholder-gray-700 font-mono text-sm min-h-[100px]"
-                                    required
-                                />
+                            <div>
+                                <label htmlFor="apply-intent" className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">About you</label>
+                                <textarea id="apply-intent" value={intent} onChange={e => setIntent(e.target.value)} required maxLength={1000}
+                                    placeholder="Who's moving in, work, how long you plan to stay…"
+                                    className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] placeholder-gray-600 text-sm min-h-[100px]" />
                             </div>
-
-                            <div className="flex flex-col relative">
-                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Requested Move-in Date</label>
-                                <input
-                                    type="date"
-                                    value={moveDate}
-                                    onChange={(e) => setMoveDate(e.target.value)}
-                                    className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors placeholder-gray-700 font-mono text-sm"
-                                    required
-                                />
+                            <div>
+                                <label htmlFor="apply-date" className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Move-in date</label>
+                                <input id="apply-date" type="date" value={moveDate} onChange={e => setMoveDate(e.target.value)} required
+                                    className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] text-sm" />
                             </div>
-
-                            <div className="flex flex-col relative pt-2">
-                                <label className="text-[10px] font-bold text-[#00A699] uppercase tracking-widest block mb-2">KYC Document Upload (ID / Salary Proof)</label>
-                                <div className="flex items-center gap-4">
-                                    <label className="cursor-pointer inline-flex items-center px-4 py-3 bg-white/5 border border-[#00A699]/30 hover:bg-[#00A699]/10 text-[#00A699] transition-colors font-mono uppercase tracking-widest text-[10px] font-bold">
-                                        Attach File
-                                        <input type="file" accept="image/jpeg, image/png, application/pdf" onChange={handleKycChange} className="hidden" />
-                                    </label>
-                                    <span className="text-[10px] text-gray-500 font-mono flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
-                                        {kycFile ? kycFile.name : "Encrypted transfer enabled (Max 2MB)"}
-                                    </span>
-                                </div>
+                            <div>
+                                <label className="text-[10px] font-bold text-[#00A699] uppercase tracking-widest block mb-2">ID / salary proof (optional)</label>
+                                <label className="cursor-pointer inline-flex items-center px-4 py-3 bg-white/5 border border-[#00A699]/30 text-[#00A699] text-[10px] font-bold uppercase tracking-widest">
+                                    Attach file
+                                    <input type="file" accept="image/jpeg,image/png,application/pdf" onChange={handleKycChange} className="hidden" />
+                                </label>
+                                <p className="text-[10px] text-gray-400 font-mono mt-2">{kycFile ? kycFile.name : 'Private — only this landlord can open it. Max 2MB.'}</p>
                             </div>
-
-                            <button
-                                type="submit"
-                                className="w-full py-4 bg-white text-black font-bold text-xs uppercase tracking-widest transition-all duration-300 hover:bg-[#00A699] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed mt-4"
-                                disabled={isApplying}
-                            >
-                                {isApplying ? <span className="animate-pulse">Encrypting & Routing...</span> : "Submit Application"}
+                            <button type="submit" disabled={isApplying}
+                                className="w-full py-4 bg-white text-black font-bold text-xs uppercase tracking-widest hover:bg-[#00A699] hover:text-white disabled:opacity-50 transition-colors">
+                                {isApplying ? 'Submitting…' : 'Submit application'}
                             </button>
                         </form>
                     </div>

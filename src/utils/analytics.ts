@@ -10,7 +10,7 @@ import { createClient } from '@/utils/supabase/client';
 
 const SESSION_KEY = 'rw_session_id';
 
-function getSessionId(): string | null {
+export function getSessionId(): string | null {
     if (typeof window === 'undefined') return null;
     try {
         let id = window.sessionStorage.getItem(SESSION_KEY);

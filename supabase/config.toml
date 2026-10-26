@@ -1,0 +1,17 @@
+project_id = "rentwise"
+
+# Called from the browser with the anon key (supabase.functions.invoke).
+[functions.check-rent]
+verify_jwt = false
+
+# Called by pg_cron (public.invoke_edge_function) with the service role key.
+# The functions additionally reject any JWT whose role is not service_role,
+# because the public anon key is also a valid JWT.
+[functions.sync-nobroker]
+verify_jwt = true
+
+[functions.sync-magicbricks]
+verify_jwt = true
+
+[functions.send-alerts]
+verify_jwt = true
