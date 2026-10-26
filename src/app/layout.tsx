@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import Navbar from '@/components/Navbar';
 import { Toaster } from 'react-hot-toast';
+import { Analytics } from '@vercel/analytics/next';
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://rentwise.devshipit.com';
 
 // Self-hosted at build time — no render-blocking request to Google Fonts.
@@ -110,6 +111,7 @@ export default function RootLayout({
           }}
         />
         </AppProvider>
+        <Analytics />
       </body>
     </html>
   );

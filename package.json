@@ -14,6 +14,7 @@
   "dependencies": {
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.106.2",
+    "@vercel/analytics": "^2.0.1",
     "apify-client": "^2.23.3",
     "axios": "^1.16.1",
     "cheerio": "^1.2.0",
