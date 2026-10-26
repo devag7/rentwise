@@ -152,7 +152,7 @@ async function llmParse(text: string, key: string): Promise<{ bhk?: string; rent
                 'content-type': 'application/json',
             },
             body: JSON.stringify({
-                model: 'claude-haiku-4-5',
+                model: 'claude-haiku-5-5',
                 max_tokens: 150,
                 system:
                     'Extract rental listing fields from the user text (Bangalore, India). ' +
