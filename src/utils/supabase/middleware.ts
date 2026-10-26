@@ -6,9 +6,16 @@ export async function updateSession(request: NextRequest) {
         request,
     })
 
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+    // Missing keys must not take the whole site (and /api/health) down —
+    // skip the session refresh and serve the page.
+    if (!url || !key) return supabaseResponse
+
     const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        url,
+        key,
         {
             cookies: {
                 getAll() {
