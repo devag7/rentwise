@@ -33,7 +33,12 @@ export interface UpsertResult {
     skipped: number;
 }
 
-const norm = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase();
+/** Area key: case/space/punctuation-insensitive ("HSR layout" == "Hsr Layout" == "HSR-Layout").
+ *  Matches the areas_name_key_uniq index (phase 17). */
+const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+/** Scraped "locality" fields are sometimes street addresses or landmarks. */
+const looksLikeLocality = (s: string) => !/[0-9,]/.test(s) && s.trim().split(/\s+/).length <= 4 && s.trim().length >= 3;
 
 /** All areas loaded once; missing ones are inserted in bulk. Case-insensitive. */
 export class AreaIndex {
@@ -62,6 +67,25 @@ export class AreaIndex {
 
     get(name: string): number | null {
         return this.byName.get(norm(name)) ?? null;
+    }
+
+    /** Known area whose name appears inside free text (longest match), e.g. an address. */
+    findIn(text: string): string | null {
+        const t = norm(text);
+        let best: string | null = null;
+        for (const [key, id] of this.byName) {
+            if (key.length >= 5 && t.includes(key) && (!best || key.length > norm(best).length)) best = this.names.get(id) ?? null;
+        }
+        return best;
+    }
+
+    /** Canonical area name for a scraped locality, or null if it can't be placed. */
+    resolve(locality: string, address?: string | null): string | null {
+        const known = this.get(locality);
+        if (known != null) return this.names.get(known) ?? null;
+        const inside = this.findIn(`${locality} ${address ?? ''}`);
+        if (inside) return inside;
+        return looksLikeLocality(locality) ? locality.trim().replace(/\s+/g, ' ') : null;
     }
 
     nameOf(id: number): string | null {
@@ -119,7 +143,13 @@ export async function upsertListings(
     const rows = [...byId.values()];
     if (!rows.length) return result;
 
-    await areas.ensure(rows.map((r) => r.area_name));
+    // Map scraped localities onto canonical areas; skip ones that can't be placed
+    // (street addresses with no known locality inside) instead of creating junk areas.
+    for (const r of rows) {
+        const resolved = areas.resolve(r.area_name, r.description);
+        r.area_name = resolved ?? '';
+    }
+    await areas.ensure(rows.map((r) => r.area_name).filter(Boolean));
 
     const existing = new Set<string>();
     for (const ids of chunk(rows.map((r) => r.external_id), 150)) {
@@ -131,7 +161,7 @@ export async function upsertListings(
     const toInsert: Record<string, unknown>[] = [];
     const toUpdate: ScrapedListing[] = [];
     for (const l of rows) {
-        const areaId = areas.get(l.area_name);
+        const areaId = l.area_name ? areas.get(l.area_name) : null;
         if (!areaId) {
             result.skipped++;
             continue;

@@ -19,7 +19,18 @@ const ACTOR = 'thirdwatch~nobroker-scraper';
 const BANGALORE_LOCALITIES = [
     'Indiranagar', 'Koramangala', 'HSR Layout', 'Whitefield', 'Marathahalli',
     'Bellandur', 'Jayanagar', 'BTM Layout', 'Electronic City', 'Banashankari',
+    'Sarjapur Road', 'JP Nagar', 'Hebbal', 'Yelahanka', 'Kalyan Nagar', 'Brookefield',
 ];
+
+// The actor fills maxResults from the first localities it is given, so one big
+// list puts ~70% of results in Indiranagar. Rotate 4 localities per run
+// (every 12h) so all 16 are covered every 2 days.
+const PER_RUN = 4;
+function localitiesForThisRun(): string[] {
+    const slots = Math.ceil(BANGALORE_LOCALITIES.length / PER_RUN);
+    const slot = Math.floor(Date.now() / (12 * 3600_000)) % slots;
+    return BANGALORE_LOCALITIES.slice(slot * PER_RUN, (slot + 1) * PER_RUN);
+}
 
 interface ApifyItem {
     listing_id?: string;
@@ -101,7 +112,7 @@ Deno.serve(async (req) => {
     const input = {
         searchMode: 'rent',
         city: 'Bangalore',
-        localities: BANGALORE_LOCALITIES,
+        localities: localitiesForThisRun(),
         ownerOnly: false,
         maxResults: 80,
     };
