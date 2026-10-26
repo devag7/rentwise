@@ -2,15 +2,20 @@
 -- Replaces the cron process that ran in the droplet's Docker container.
 --
 -- Before running:
---   1. Database → Extensions: enable pg_cron and pg_net.
---   2. Deploy the Edge Functions (see supabase/README.md).
---   3. Replace the two placeholders below, then run this file once.
+--   1. Deploy the Edge Functions (see supabase/README.md) and set the
+--      CRON_SECRET Edge Function secret (any random string, 32+ chars).
+--   2. Replace YOUR-CRON-SECRET below with that same value, run once.
+-- The service role key never leaves Supabase: functions authenticate the
+-- scheduler with the x-cron-secret header.
 
-select vault.create_secret('https://YOUR-PROJECT-REF.supabase.co', 'project_url')
+create extension if not exists pg_cron;
+create extension if not exists pg_net;
+
+select vault.create_secret('https://mcbrjtujlxiihuxcgsph.supabase.co', 'project_url')
 where not exists (select 1 from vault.secrets where name = 'project_url');
 
-select vault.create_secret('YOUR-SERVICE-ROLE-KEY', 'service_role_key')
-where not exists (select 1 from vault.secrets where name = 'service_role_key');
+select vault.create_secret('YOUR-CRON-SECRET', 'cron_secret')
+where not exists (select 1 from vault.secrets where name = 'cron_secret');
 
 create or replace function public.invoke_edge_function(fn text, body jsonb default '{}'::jsonb)
 returns bigint
@@ -22,7 +27,7 @@ as $$
         url := (select decrypted_secret from vault.decrypted_secrets where name = 'project_url') || '/functions/v1/' || fn,
         headers := jsonb_build_object(
             'Content-Type', 'application/json',
-            'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'service_role_key')
+            'x-cron-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'cron_secret')
         ),
         body := body,
         timeout_milliseconds := 150000
