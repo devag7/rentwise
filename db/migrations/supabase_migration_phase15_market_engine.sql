@@ -38,6 +38,8 @@ as $$
     select count(*)::int from upd;
 $$;
 
+revoke execute on function public.deactivate_stale_listings() from public, anon, authenticated;
+
 -- Zero-fake-data: scraped owner phone numbers are personal data we never
 -- verified. Stop keeping them; the listing links out to its source instead.
 update public.properties
@@ -119,6 +121,8 @@ as $$
     select count(*)::int from ins;
 $$;
 
+revoke execute on function public.snapshot_area_rent_history() from public, anon, authenticated;
+
 -- Seed today so charts have a first point.
 select public.snapshot_area_rent_history();
 
@@ -188,6 +192,7 @@ as $$
     select exists (select 1 from upd);
 $$;
 
+revoke execute on function public.unsubscribe_watch(uuid) from public;
 grant execute on function public.unsubscribe_watch(uuid) to anon, authenticated;
 
 -- ─── 7. Storage: listing photos (replaces base64 in the properties row) ──
