@@ -1,4 +1,4 @@
-project_id = "rentwise"
+project_id = "mcbrjtujlxiihuxcgsph"
 
 # Called from the browser with the anon key (supabase.functions.invoke).
 [functions.check-rent]
