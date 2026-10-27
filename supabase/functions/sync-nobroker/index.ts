@@ -24,11 +24,13 @@ const BANGALORE_LOCALITIES = [
 
 // The actor fills maxResults from the first localities it is given, so one big
 // list puts ~70% of results in Indiranagar. Rotate 4 localities per run
-// (every 12h) so all 16 are covered every 2 days.
+// (every 12h) so all 16 are covered every 2 days. POST {"slot": n} overrides.
 const PER_RUN = 4;
-function localitiesForThisRun(): string[] {
+function localitiesForSlot(override?: number): string[] {
     const slots = Math.ceil(BANGALORE_LOCALITIES.length / PER_RUN);
-    const slot = Math.floor(Date.now() / (12 * 3600_000)) % slots;
+    const slot = Number.isInteger(override) && override! >= 0 && override! < slots
+        ? override!
+        : Math.floor(Date.now() / (12 * 3600_000)) % slots;
     return BANGALORE_LOCALITIES.slice(slot * PER_RUN, (slot + 1) * PER_RUN);
 }
 
@@ -109,10 +111,19 @@ Deno.serve(async (req) => {
     const token = Deno.env.get('APIFY_API_TOKEN');
     if (!token) return json({ error: 'APIFY_API_TOKEN not set' }, 500);
 
+    let slotOverride: number | undefined;
+    try {
+        const b = await req.json();
+        if (Number.isInteger(b?.slot)) slotOverride = b.slot;
+    } catch {
+        // no body
+    }
+    const localities = localitiesForSlot(slotOverride);
+
     const input = {
         searchMode: 'rent',
         city: 'Bangalore',
-        localities: localitiesForThisRun(),
+        localities,
         ownerOnly: false,
         maxResults: 80,
     };
@@ -151,7 +162,7 @@ Deno.serve(async (req) => {
         const sb = adminClient();
         const areas = await AreaIndex.load(sb);
         const r = await upsertListings(sb, listings, areas);
-        const out = { fetched: items.length, inserted: r.inserted, updated: r.updated, skipped: skipped + r.skipped };
+        const out = { localities, fetched: items.length, inserted: r.inserted, updated: r.updated, skipped: skipped + r.skipped };
         console.log('[sync-nobroker]', JSON.stringify(out));
         return json(out);
     } catch (e) {

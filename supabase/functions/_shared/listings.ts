@@ -54,13 +54,14 @@ export class AreaIndex {
     }
 
     async reload(): Promise<void> {
-        const { data, error } = await this.sb.from('areas').select('area_id, name');
+        const { data, error } = await this.sb.from('areas').select('area_id, name').order('area_id');
         if (error) throw new Error(`areas load failed: ${error.message}`);
         this.byName.clear();
         this.names.clear();
         for (const a of (data ?? []) as Array<{ area_id: number; name: string }>) {
             if (!a.name) continue;
-            this.byName.set(norm(a.name), a.area_id);
+            // Duplicates (pre-phase-17): keep the oldest, canonical row.
+            if (!this.byName.has(norm(a.name))) this.byName.set(norm(a.name), a.area_id);
             this.names.set(a.area_id, a.name);
         }
     }
