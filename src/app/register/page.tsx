@@ -1,4 +1,5 @@
 
+export const metadata = { title: 'Sign up — tenants & landlords', alternates: { canonical: '/register' } };
 import Link from 'next/link';
 
 export default function RegisterHub() {

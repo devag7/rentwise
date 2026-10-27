@@ -6,11 +6,16 @@
  *   ✅ If a field cannot be extracted → it is NULL, not fabricated
  *   ✅ No generated emails, no constructed owner names, no random coordinates
  *   ✅ GPS uses exact area center coordinates (not randomized offsets)
- *   ✅ Phone numbers must be a valid 10-digit Indian mobile (sipro field)
  *   ✅ Parking is null when not explicitly scraped (never random)
- * 
- * Required fields for insertion: image_url + price + size + source_url
- * Optional (null if missing): contact_name, contact_phone, furnishing, parking, bathrooms
+ *   ✅ No default BHK: listings whose BHK isn't in the URL are skipped
+ *   ✅ No size estimates: size is null unless carpet/built-up area is on the page
+ *   ✅ Owner phone numbers / names are personal data — never stored
+ *
+ * Required fields for insertion: image_url + price + BHK + source_url
+ * Optional (null if missing): size, furnishing, parking, bathrooms
+ *
+ * Primary pipeline is now supabase/functions/sync-magicbricks (pg_cron);
+ * this script is the Docker fallback and follows the same rules.
  */
 
 import axios from 'axios';
@@ -67,14 +72,12 @@ interface PropertyListing {
     area_name: string;
     property_type: string;
     rent: number;
-    size: number;
+    size: number | null;       // null = not on page (never estimated)
     bathrooms: number | null;
     parking: boolean | null;   // null = not known (never random)
     furnishing_status: string | null;
     source: 'scraped';
     source_url: string;
-    contact_name: string | null;   // null = not on page
-    contact_phone: string | null;  // null = no valid Indian mobile found
     external_id: string;
     scraped_at: string;
     description: string;
@@ -92,51 +95,11 @@ function decodeUnicode(str: string): string {
         .replace(/\\u([0-9a-fA-F]{4})/g, (_m, h) => String.fromCharCode(parseInt(h, 16)));
 }
 
-function parseBHK(url: string): string {
+/** BHK from the listing URL, or null — never a default. */
+function parseBHK(url: string): string | null {
+    if (/(^|[^a-z])1-?RK([^a-z]|$)/i.test(url)) return '1RK';
     const m = url.match(/(\d)-BHK/i) || url.match(/(\d)BHK/i);
-    return m ? `${m[1]}BHK` : '2BHK';
-}
-
-/**
- * Extract a valid Indian mobile number from MagicBricks sipro field.
- * MagicBricks stores phone fragments like: "78469543 83044671 74441687 83293757"
- * We try adjacent pairs to form a valid 10-digit mobile starting with 6-9.
- * Returns null if no valid number found — NEVER fabricates.
- */
-function extractPhone(sipro: string): string | null {
-    if (!sipro?.trim()) return null;
-    const frags = sipro.trim().split(/\s+/).filter(f => /^\d+$/.test(f));
-    if (!frags.length) return null;
-    // Try all adjacent pairs
-    for (let i = 0; i < frags.length - 1; i++) {
-        const raw = frags[i] + frags[i + 1];
-        // Slide a 10-char window and look for valid mobile
-        for (let j = 0; j <= raw.length - 10; j++) {
-            const candidate = raw.substring(j, j + 10);
-            if (/^[6-9]\d{9}$/.test(candidate)) return `+91 ${candidate}`;
-        }
-    }
-    // Single concat attempt
-    const all = frags.join('');
-    for (let j = 0; j <= all.length - 10; j++) {
-        const candidate = all.substring(j, j + 10);
-        if (/^[6-9]\d{9}$/.test(candidate)) return `+91 ${candidate}`;
-    }
-    return null;
-}
-
-/**
- * Extract real owner name from the script block at position i.
- * Tries ownerName, nameLabel, agentName fields in order.
- * Returns null if nothing real found — NEVER constructs a name.
- */
-export function extractOwnerName(scriptText: string, i: number): string | null {
-    for (const field of ['ownerName', 'nameLabel', 'agentName']) {
-        const matches = [...scriptText.matchAll(new RegExp(`"${field}"\\s*:\\s*"([^"]{2,80})"`, 'g'))].map(m => m[1].trim());
-        const val = matches[i];
-        if (val && val !== 'null' && val.length >= 2) return val;
-    }
-    return null;
+    return m && m[1] !== '0' ? `${m[1]}BHK` : null;
 }
 
 async function scrapeMagicBricks(area: AreaConfig): Promise<PropertyListing[]> {
@@ -186,30 +149,18 @@ async function scrapeMagicBricks(area: AreaConfig): Promise<PropertyListing[]> {
                 // MUST search in 'after' (current property) to avoid matching the previous property and duplicating external_ids
                 const propUrlMatch = after.match(/"url"\s*:\s*"([^"]*(?:for-rent|FOR-Rent|-BHK-)[^"]*)"/i);
                 const propUrl = propUrlMatch ? decodeUnicode(propUrlMatch[1]) : null;
+                // No listing URL → no BHK, no stable id, no source link. Skip.
+                if (!propUrl) continue;
+                const bhk = parseBHK(propUrl);
+                if (!bhk) continue;
 
-                // Extract size — carpet preferred, then builtUpArea
-                // MagicBricks doesn't embed sqft in page HTML (async-loaded) — derive from BHK
+                // Extract size — carpet preferred, then builtUpArea. Real values only.
                 const carpetMatch = context.match(/"carpet"\s*:\s*(\d+)/g)?.pop();
                 const builtupMatch = context.match(/"builtUpArea"\s*:\s*(\d+)/g)?.pop();
                 const scrapedSqft = carpetMatch ? parseInt(carpetMatch.match(/(\d+)$/)?.[1] || '0')
                     : builtupMatch ? parseInt(builtupMatch.match(/(\d+)$/)?.[1] || '0') : 0;
-                // Fall back to BHK-based estimate if actual sqft not in page
-                const bhkForSize = parseBHK(propUrl || '');
-                const bhkEstimate = bhkForSize.startsWith('1') ? 500 : bhkForSize.startsWith('3') ? 1300 : bhkForSize.startsWith('4') ? 1800 : 900;
-                const sqft = scrapedSqft > 0 ? scrapedSqft : bhkEstimate;
+                const sqft = scrapedSqft > 0 ? scrapedSqft : null;
 
-
-                // Extract sipro for phone number (sipro is in `before`, right before allImgPath)
-                const siproMatch = context.match(/"sipro"\s*:\s*"([^"]*)"/g);
-                const siproVal = siproMatch?.[siproMatch.length - 1]?.match(/"sipro"\s*:\s*"([^"]*)"/)?.[1] || '';
-                const phone = extractPhone(siproVal);
-
-                // Extract owner name from context
-                let ownerName: string | null = null;
-                for (const field of ['ownerName', 'nameLabel', 'agentName']) {
-                    const m = context.match(new RegExp(`"${field}"\\s*:\\s*"([^"]{2,80})"`))?.[1]?.trim();
-                    if (m && m !== 'null' && m.length >= 2) { ownerName = m; break; }
-                }
 
                 // Extract furnishing
                 const furnMatch = context.match(/"furnStatusD"\s*:\s*"([^"]+)"/)?.[1]?.trim();
@@ -228,16 +179,12 @@ async function scrapeMagicBricks(area: AreaConfig): Promise<PropertyListing[]> {
                 else if (parkMatch) parking = parseInt(parkMatch.match(/(\d+)$/)?.[1] || '0') > 0;
 
                 // Build source URL
-                const sourceUrl = propUrl
-                    ? (propUrl.startsWith('http') ? propUrl : `https://www.magicbricks.com${propUrl.startsWith('/') ? '' : '/'}${propUrl}`)
-                    : `https://www.magicbricks.com/property-for-rent/residential-real-estate?cityName=Bangalore&localityName=${area.slug}`;
-
-                // BHK from propUrl
-                const bhk = propUrl ? parseBHK(propUrl) : '2BHK';
+                const sourceUrl = propUrl.startsWith('http')
+                    ? propUrl
+                    : `https://www.magicbricks.com${propUrl.startsWith('/') ? '' : '/'}${propUrl}`;
 
                 // Address
-                const rentMatch = propUrl?.match(/([^/]+)-FOR-Rent-([^/]+)-in-/i)
-                    || propUrl?.match(/([^/]+)-for-rent-([^/]+)-in-/i);
+                const rentMatch = propUrl.match(/([^/]+)-FOR-Rent-([^/]+)-in-/i);
                 const societyRaw = rentMatch ? rentMatch[1].replace(/-/g, ' ') : null;
                 const locationRaw = rentMatch ? rentMatch[2].replace(/-/g, ' ') : area.name;
                 const address = societyRaw
@@ -255,8 +202,8 @@ async function scrapeMagicBricks(area: AreaConfig): Promise<PropertyListing[]> {
                 ].filter(Boolean).join(' ');
 
                 // External ID — stable from propUrl hash
-                const hashMatch = propUrl?.match(/\/([A-Z0-9]{10,})-[A-Z]/i) || propUrl?.match(/id=(\d+)/i);
-                const externalId = hashMatch ? `mb-${hashMatch[1].toLowerCase()}` : `mb-${area.slug.toLowerCase()}-${priceNum}-${sqft}-${i}`;
+                const hashMatch = propUrl.match(/\/([A-Z0-9]{10,})-[A-Z]/i) || propUrl.match(/id=(\d+)/i);
+                const externalId = hashMatch ? `mb-${hashMatch[1].toLowerCase()}` : `mb-${area.slug.toLowerCase()}-${priceNum}-${sqft ?? 'na'}-${i}`;
 
                 listings.push({
                     address,
@@ -269,8 +216,6 @@ async function scrapeMagicBricks(area: AreaConfig): Promise<PropertyListing[]> {
                     furnishing_status: furn,
                     source: 'scraped',
                     source_url: sourceUrl,
-                    contact_name: ownerName,
-                    contact_phone: phone,
                     external_id: externalId,
                     scraped_at: new Date().toISOString(),
                     description: desc,
@@ -303,7 +248,7 @@ async function getAreaId(name: string): Promise<number | null> {
 async function insertListings(listings: PropertyListing[]): Promise<number> {
     let inserted = 0;
     for (const l of listings) {
-        if (!l.image_url || !l.rent || !l.size || !l.source_url) continue;
+        if (!l.image_url || !l.rent || !l.property_type || !l.source_url) continue;
         const areaId = await getAreaId(l.area_name);
         if (!areaId) continue;
 
@@ -319,10 +264,12 @@ async function insertListings(listings: PropertyListing[]): Promise<number> {
             description: l.description,
             source: l.source,
             source_url: l.source_url,
-            contact_name: l.contact_name,
-            contact_phone: l.contact_phone,
+            contact_name: null,   // personal data — never stored
+            contact_phone: null,
             external_id: l.external_id,
             scraped_at: l.scraped_at,
+            last_seen_at: l.scraped_at,
+            is_active: true,
             image_url: l.image_url,
             google_maps_link: l.google_maps_link,
             landlord_id: null,
@@ -335,7 +282,15 @@ async function insertListings(listings: PropertyListing[]): Promise<number> {
             .maybeSingle();
 
         if (existing) {
-            await supabase.from('properties').update({ scraped_at: row.scraped_at }).eq('external_id', row.external_id);
+            await supabase.from('properties').update({
+                scraped_at: row.scraped_at,
+                last_seen_at: row.scraped_at,
+                is_active: true,
+                rent: row.rent,
+                image_url: row.image_url,
+                contact_name: null,
+                contact_phone: null,
+            }).eq('external_id', row.external_id);
             inserted++;
         } else {
             const { error: ie } = await supabase.from('properties').insert(row);
@@ -350,7 +305,7 @@ export async function runScraper(): Promise<void> {
     console.log(`\n[SCRAPER] ============================================================`);
     console.log(`[SCRAPER] RentWise Production Scraper — Zero Fake Data Policy`);
     console.log(`[SCRAPER] ${new Date().toISOString()} | ${BANGALORE_AREAS.length} Bangalore areas | MagicBricks`);
-    console.log(`[SCRAPER] Required: image + price + size + source_url | Optional: phone, owner, furnishing`);
+    console.log(`[SCRAPER] Required: image + price + BHK + source_url | Optional: size, furnishing, parking`);
     console.log(`[SCRAPER] ============================================================\n`);
 
     let totalFound = 0, totalInserted = 0;
@@ -366,21 +321,19 @@ export async function runScraper(): Promise<void> {
         } else {
             const inserted = await insertListings(listings);
             totalInserted += inserted;
-            const withPhone = listings.filter(l => l.contact_phone).length;
-            const withOwner = listings.filter(l => l.contact_name).length;
-            console.log(`${listings.length} scraped → ${inserted} upserted (📞${withPhone} phones, 👤${withOwner} owners)`);
+            const withSize = listings.filter(l => l.size).length;
+            console.log(`${listings.length} scraped → ${inserted} upserted (${withSize} with real sqft)`);
         }
         await sleep(2500);
     }
 
-    // Stale listing cleanup (>3 days old, not refreshed)
-    const cutoff = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
-    const { data: stale } = await supabase.from('properties').delete().eq('source', 'scraped').lt('scraped_at', cutoff).select('property_id');
-    const staleCount = stale?.length || 0;
+    // Stale listings: mark inactive (not seen for 14 days) instead of deleting,
+    // so rent history and saved favourites keep working. See phase 15 SQL.
+    const { data: staleCount } = await supabase.rpc('deactivate_stale_listings');
 
     const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
     console.log(`\n[SCRAPER] ============================================================`);
-    console.log(`[SCRAPER] Complete in ${elapsed}s | Scraped: ${totalFound} | Inserted/Updated: ${totalInserted} | Stale removed: ${staleCount}`);
+    console.log(`[SCRAPER] Complete in ${elapsed}s | Scraped: ${totalFound} | Inserted/Updated: ${totalInserted} | Stale deactivated: ${staleCount ?? 0}`);
     console.log(`[SCRAPER] ============================================================\n`);
 }
 

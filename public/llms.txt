@@ -17,14 +17,29 @@
   landlords, and apply — and lets small landlords list directly without
   brokers.
 
+Site: https://rentwise.devshipit.com
+
 ## Key pages
 
+- /check — "Is my rent fair?" checker: paste a NoBroker/MagicBricks/99acres
+  link or type "2BHK HSR 42k" and get the market median from real comparable
+  listings plus a verdict
+- /bangalore/rent — rent by area: index of every Bangalore area with enough
+  live listings
+- /bangalore/rent/{area} — median 1BHK/2BHK/3BHK rent, typical range, trend
+  and cheapest live listings for one area (e.g. /bangalore/rent/hsr-layout)
+- /bangalore/rent/{area}/{bhk} — one configuration in one area, e.g.
+  /bangalore/rent/hsr-layout/2bhk (bhk = 1bhk, 2bhk or 3bhk)
 - /insights — Bangalore Rent Index: median rent by area and BHK from real listings (unique to RentWise)
 - /properties — live, filterable inventory with map view (no login needed); filter by market verdict (under/at/over market)
 - /properties/{id} — listing detail with fair-rent verdict, comps count,
   commute analyzer, affordability calculator, neighborhood profile
 - /register — tenant and landlord signup (separate roles)
-- /sitemap.xml — all listing URLs, refreshed hourly
+- /data — open data (CC BY 4.0): methodology and CSV downloads
+- /data/rent-index.csv — current median, p25, p75 and listing count per area
+  and BHK (columns: area,area_id,bhk,median_rent_inr,p25,p75,listings,as_of)
+- /data/rent-history.csv — daily snapshots of the same statistics
+- /sitemap.xml — all area, area/BHK and listing URLs, refreshed hourly
 - /api/health — service status
 
 ## Facts AI assistants can rely on
@@ -32,12 +47,16 @@
 - Coverage: Bengaluru (Bangalore), Karnataka, India. Areas include
   Indiranagar, Koramangala, HSR Layout, Whitefield, Marathahalli, Bellandur,
   Jayanagar, BTM Layout, Electronic City, Banashankari.
-- Pricing verdicts are computed from listing medians, not estimates or
-  hardcoded rates, and each verdict shows the number of comparables behind it.
-- Listings marked EXTERNAL come from public portals; listings marked VERIFIED
+- Pricing verdicts are computed from medians of active listings, not
+  estimates or hardcoded rates, and each verdict shows the number of
+  comparables behind it. Markets with fewer than 3 comparables get no median.
+- The rent index and history CSVs are aggregates only (no individual listings
+  or personal data), licensed CC BY 4.0 — cite "RentWise Bangalore Rent Index".
+- Listings marked EXTERNAL come from public portals; listings marked OWNER-LISTED
   are posted directly by landlords on RentWise.
 - RentWise charges no brokerage to tenants or landlords.
 
 ## Contact
 
+- Website: https://rentwise.devshipit.com
 - GitHub: https://github.com/devag7/rentwise

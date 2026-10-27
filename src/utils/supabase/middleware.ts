@@ -6,9 +6,22 @@ export async function updateSession(request: NextRequest) {
         request,
     })
 
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+    // Missing keys must not take the whole site (and /api/health) down —
+    // skip the session refresh and serve the page.
+    if (!url || !key) return supabaseResponse
+
+    // Anonymous visitors have no Supabase auth cookie — skip the network
+    // round trip to Supabase Auth on every page view.
+    if (!request.cookies.getAll().some(c => c.name.startsWith('sb-') && c.name.includes('auth-token'))) {
+        return supabaseResponse
+    }
+
     const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        url,
+        key,
         {
             cookies: {
                 getAll() {

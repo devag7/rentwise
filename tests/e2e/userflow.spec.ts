@@ -28,14 +28,13 @@ test.describe('RentWise Userflow Tests', () => {
         const heading = page.locator('h1').first();
         await expect(heading).toBeVisible();
 
-        const accessBtn = page.getByText(/Initialize Access/i);
-        await expect(accessBtn).toBeVisible();
+        await expect(page.getByRole('link', { name: /Is my rent fair/i })).toBeVisible();
     });
 
     test('Properties page loads and handles empty states', async ({ page }) => {
         await page.goto('/properties');
 
-        const header = page.getByText(/Live Inventory/i);
+        const header = page.getByText(/Live inventory/i);
         await expect(header).toBeVisible();
 
         // Either we see properties or "Zero Matches Found"
@@ -85,5 +84,29 @@ test.describe('RentWise Userflow Tests', () => {
         await page.goto('/dashboard');
         // Should land on login (client-side redirect) or stay on dashboard shell
         await page.waitForURL(/login|dashboard/, { timeout: 10_000 });
+    });
+
+    test('Rent checker answers a typed query', async ({ page }) => {
+        await page.goto('/check');
+        await expect(page.locator('h1')).toContainText(/fair/i);
+        await page.getByLabel(/Listing link or description/i).fill('2BHK HSR Layout 42k');
+        await page.getByRole('button', { name: /^Check$/ }).click();
+        await expect(page.getByText(/Read as:/i)).toBeVisible({ timeout: 20_000 });
+        await expect(page.getByText(/2BHK/).first()).toBeVisible();
+    });
+
+    test('Rent index and open data pages render', async ({ page, request }) => {
+        await page.goto('/insights');
+        await expect(page.locator('h1')).toContainText(/Bangalore/i);
+        await page.goto('/data');
+        await expect(page.locator('h1')).toBeVisible();
+        const csv = await request.get('/data/rent-index.csv');
+        expect(csv.ok()).toBeTruthy();
+        expect(await csv.text()).toContain('median_rent_inr');
+    });
+
+    test('Area rent pages index renders', async ({ page }) => {
+        await page.goto('/bangalore/rent');
+        await expect(page.locator('h1')).toBeVisible();
     });
 });

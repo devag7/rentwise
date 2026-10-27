@@ -1,358 +1,257 @@
-import { createClient } from '@/utils/supabase/server';
+import { cache } from 'react';
 import { notFound } from 'next/navigation';
+import Link from 'next/link';
 import ApplicationCard from '@/components/property/ApplicationCard';
 import InteractiveMediaLinks from '@/components/property/InteractiveMediaLinks';
 import CommuteAnalyzer from '@/components/property/CommuteAnalyzer';
 import AffordabilityCalculator from '@/components/property/AffordabilityCalculator';
 import TourScheduler from '@/components/property/TourScheduler';
 import NeighborhoodProfile from '@/components/property/NeighborhoodProfile';
-import PropertyReviews from '@/components/property/PropertyReviews';
-import PropertyCard, { Property } from '@/components/PropertyCard';
+import PropertyReviews, { type Review } from '@/components/property/PropertyReviews';
+import PropertyCard from '@/components/PropertyCard';
 import ShareListing from '@/components/property/ShareListing';
 import ReportListing from '@/components/property/ReportListing';
-import { computeMarketStats, marketKey, getVerdict } from '@/utils/market';
+import { createPublicClient } from '@/utils/supabase/public';
+import { getMarketStats, marketKey, getVerdict, formatINR } from '@/utils/market';
+import { CARD_COLUMNS, toProperty, queryActive } from '@/utils/listings';
 
-// Heuristic fallback when too few real comps exist
-const calculateAIPrediction = (area_name: string, size: number, type: string) => {
-    let baseRatePerSqFt = 20;
+// Listing pages are public data: cache and refresh every 10 minutes.
+export const revalidate = 600;
 
-    const premiumAreas = ['Indiranagar', 'Koramangala', 'Whitefield', 'HSR Layout'];
-    const standardAreas = ['Marathahalli', 'Bellandur', 'Jayanagar'];
+// Render on first request, then serve from cache (no DB access at build time).
+export async function generateStaticParams() {
+    return [];
+}
 
-    if (premiumAreas.includes(area_name)) baseRatePerSqFt = 35;
-    else if (standardAreas.includes(area_name)) baseRatePerSqFt = 25;
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://rentwise.devshipit.com';
 
-    let prediction = size * baseRatePerSqFt;
-    if (type === '3BHK') prediction += 8000;
-    if (type === '2BHK') prediction += 4000;
-
-    return Math.round(prediction / 500) * 500;
-};
+const getProperty = cache(async (id: string) => {
+    if (!/^\d+$/.test(id)) return null;
+    const { data } = await createPublicClient()
+        .from('properties')
+        .select('*, areas ( name )')
+        .eq('property_id', id)
+        .maybeSingle();
+    return data ? toProperty(data) as ReturnType<typeof toProperty> & Record<string, unknown> : null;
+});
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
-    const supabase = await createClient();
-    const { data: p } = await supabase
-        .from('properties')
-        .select('address, rent, property_type, description, areas ( name )')
-        .eq('property_id', id)
-        .single();
-
+    const p = await getProperty(id);
     if (!p) return { title: 'Listing not found' };
 
-    const area = (p.areas as unknown as { name: string } | null)?.name || 'Bangalore';
-    const title = `${p.property_type} for rent in ${area} — ₹${Number(p.rent).toLocaleString('en-IN')}/mo`;
-    const description = (p.description || `${p.property_type} at ${p.address}, ${area}. Verified market data and fair-rent verdict on RentWise.`).slice(0, 155);
-
+    const title = `${p.property_type || 'Flat'} for rent in ${p.area_name} — ${formatINR(p.rent)}/mo`;
+    const description = (p.description || `${p.property_type} at ${p.address}, ${p.area_name}. Fair-rent verdict from real market comparables on RentWise.`).slice(0, 155);
     return {
         title,
         description,
-        openGraph: { title, description, type: 'article' },
+        openGraph: { title, description, type: 'article', ...(p.image_url ? { images: [p.image_url.split(',')[0]] } : {}) },
         alternates: { canonical: `/properties/${id}` },
     };
 }
 
 export default async function PropertyDetails({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
-    const supabase = await createClient();
+    const property = await getProperty(id);
+    if (!property) notFound();
 
-    const { data: property, error } = await supabase
-        .from('properties')
-        .select(`*, areas ( name )`)
-        .eq('property_id', id)
-        .single();
+    const supabase = createPublicClient();
+    const areaId = property.area_id as number;
 
-    if (error || !property) {
-        return notFound();
-    }
+    const [areaStats, { data: similarData }, { data: reviewData }, { data: paidData }] = await Promise.all([
+        getMarketStats(supabase, { areaId }),
+        queryActive((activeOnly) => {
+            let q = supabase.from('properties').select(CARD_COLUMNS)
+                .eq('area_id', areaId)
+                .neq('property_id', property.property_id);
+            if (activeOnly) q = q.eq('is_active', true);
+            if (property.property_type) q = q.eq('property_type', property.property_type);
+            return q.order('rent', { ascending: true }).limit(3);
+        }),
+        supabase.from('reviews').select('review_id, rating, review_text, created_at')
+            .eq('property_id', property.property_id).order('created_at', { ascending: false }).limit(20),
+        supabase.from('paid_rent_stats').select('property_type, median, count').eq('area_id', areaId),
+    ]);
 
-    const formattedProperty = {
-        ...property,
-        area_name: property.areas?.name || 'Unknown Area',
-        images: property.image_url ? property.image_url.split(',').map((u: string) => u.trim()).filter(Boolean) : []
-    };
-
-    // Comps-based verdict: median rent of real listings with the same
-    // area + type. Heuristic only when too few comps exist.
-    const { data: compRows } = await supabase
-        .from('properties')
-        .select('area_id, property_type, rent')
-        .eq('area_id', formattedProperty.area_id)
-        .eq('property_type', formattedProperty.property_type);
-
-    const stats = computeMarketStats(compRows || []);
-    const verdict = getVerdict(
-        formattedProperty.rent,
-        stats[marketKey(formattedProperty.area_id, formattedProperty.property_type)]
-    );
-
-    const predictedPrice = verdict
-        ? verdict.median
-        : calculateAIPrediction(formattedProperty.area_name, formattedProperty.size, formattedProperty.property_type);
-    const difference = predictedPrice - formattedProperty.rent;
-    const isGoodDeal = verdict ? verdict.label !== 'OVER MARKET' : difference >= 0;
-    const differencePercent = verdict
-        ? String(verdict.percent)
-        : Math.abs((difference / predictedPrice) * 100).toFixed(0);
+    const stat = areaStats[marketKey(areaId, property.property_type)];
+    const verdict = getVerdict(property.rent, stat);
     const verdictText = verdict
         ? (verdict.label === 'AT MARKET' ? 'at market' : `${verdict.percent}% ${verdict.label.toLowerCase()}`)
         : undefined;
 
-    const { data: similarPropertiesData } = await supabase
-        .from('properties')
-        .select('*, areas(name)')
-        .neq('property_id', id)
-        .or(`area_id.eq.${formattedProperty.area_id},property_type.eq.${formattedProperty.property_type}`)
-        .limit(3);
+    const images: string[] = property.image_url
+        ? property.image_url.split(',').map((u: string) => u.trim()).filter(Boolean)
+        : [];
+    const similar = ((similarData || []) as Record<string, unknown>[]).map(toProperty);
+    const isActive = property.is_active !== false;
 
-    const similarProperties: Property[] = (similarPropertiesData || []).map(item => ({
-        ...item,
-        area_name: item.areas?.name || 'Unknown Area'
-    })) as Property[];
-
-    // Structured data for search engines + AI crawlers
     const jsonLd = {
         '@context': 'https://schema.org',
         '@type': 'RealEstateListing',
-        name: `${formattedProperty.property_type} for rent in ${formattedProperty.area_name}`,
-        description: formattedProperty.description || formattedProperty.address,
-        url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://157.245.110.163:3009'}/properties/${formattedProperty.property_id}`,
-        ...(formattedProperty.images[0] ? { image: formattedProperty.images[0] } : {}),
+        name: `${property.property_type} for rent in ${property.area_name}`,
+        description: property.description || property.address,
+        url: `${BASE_URL}/properties/${property.property_id}`,
+        ...(images[0] ? { image: images[0] } : {}),
         address: {
             '@type': 'PostalAddress',
-            streetAddress: formattedProperty.address,
-            addressLocality: formattedProperty.area_name,
-            addressRegion: 'Bengaluru, Karnataka',
+            streetAddress: property.address,
+            addressLocality: property.area_name,
+            addressRegion: 'Karnataka',
             addressCountry: 'IN',
         },
         offers: {
             '@type': 'Offer',
-            price: formattedProperty.rent,
+            price: property.rent,
             priceCurrency: 'INR',
-            availability: 'https://schema.org/InStock',
+            availability: isActive ? 'https://schema.org/InStock' : 'https://schema.org/SoldOut',
         },
-        ...(formattedProperty.size ? { floorSize: { '@type': 'QuantitativeValue', value: formattedProperty.size, unitCode: 'FTK' } } : {}),
+        ...(property.size ? { floorSize: { '@type': 'QuantitativeValue', value: property.size, unitCode: 'FTK' } } : {}),
     };
 
+    const facts: [string, string][] = [
+        ['Size', property.size ? `${property.size} sq ft` : 'Not specified'],
+        ['Bathrooms', property.bathrooms ? String(property.bathrooms) : 'Not specified'],
+        ['Deposit', property.deposit ? `${formatINR(property.deposit)}${property.rent ? ` (${(property.deposit / property.rent).toFixed(1)} mo)` : ''}` : 'Not specified'],
+        ['Parking', property.parking === true ? 'Yes' : property.parking === false ? 'No' : 'Not specified'],
+        ['Furnishing', property.furnishing_status || 'Not specified'],
+    ];
+
     return (
-        <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col items-center pb-20 pt-32 px-6 selection:bg-[#FF385C] selection:text-white">
-            <script
-                type="application/ld+json"
-                dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-            />
-            <div className="relative max-w-5xl w-full bg-[#111] rounded-none shadow-2xl p-0 md:p-12 border border-white/10 flex flex-col md:flex-row gap-12 md:items-start">
+        <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col items-center pb-20 pt-28 px-4 sm:px-6 selection:bg-[#FF385C] selection:text-white">
+            <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-                {/* Left Column: Image & Details */}
-                <div className="flex-1 w-full flex flex-col gap-10">
+            <div className="max-w-5xl w-full">
+                <nav className="text-[10px] font-mono text-gray-500 uppercase tracking-widest mb-6" aria-label="Breadcrumb">
+                    <Link href="/properties" className="hover:text-white">Flats</Link>
+                    {' / '}
+                    <Link href={`/properties?area_id=${areaId}`} className="hover:text-white">{property.area_name}</Link>
+                </nav>
+                {!isActive && (
+                    <div className="mb-6 p-4 border border-amber-500/40 bg-amber-500/10 text-amber-300 text-sm">
+                        This listing hasn&apos;t been seen on its source for over two weeks and is probably rented out.
+                    </div>
+                )}
+            </div>
 
-                    {/* Header */}
+            <div className="max-w-5xl w-full bg-[#111] border border-white/10 p-5 md:p-12 flex flex-col md:flex-row gap-10 md:items-start">
+                <div className="flex-1 min-w-0 w-full flex flex-col gap-10">
                     <div>
-                        <div className="flex items-center gap-3 mb-6">
-                            <span className="px-3 py-1.5 bg-black text-white border border-white/20 text-[10px] font-bold tracking-widest uppercase">
-                                {formattedProperty.property_type}
-                            </span>
-                            {formattedProperty.source === 'scraped' ? (
-                                <span className="px-3 py-1.5 bg-amber-500/20 text-amber-400 border border-amber-500/40 text-[10px] font-bold tracking-widest uppercase flex items-center gap-1">
-                                    <span className="w-1.5 h-1.5 bg-amber-400 rounded-full"></span>
-                                    EXTERNAL LISTING
-                                </span>
+                        <div className="flex flex-wrap items-center gap-3 mb-6">
+                            <span className="px-3 py-1.5 bg-black text-white border border-white/20 text-[10px] font-bold tracking-widest uppercase">{property.property_type || 'Flat'}</span>
+                            {property.source === 'scraped' ? (
+                                <span className="px-3 py-1.5 bg-amber-500/20 text-amber-400 border border-amber-500/40 text-[10px] font-bold tracking-widest uppercase">External listing</span>
                             ) : (
-                                <span className="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-bold tracking-widest uppercase flex items-center gap-1">
-                                    <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>
-                                    VERIFIED
-                                </span>
+                                <span className="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-bold tracking-widest uppercase">Owner-listed</span>
                             )}
-                            <span className="flex items-center text-gray-500 text-[10px] font-bold tracking-widest uppercase">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                </svg>
-                                {formattedProperty.area_name}
-                            </span>
+                            <span className="text-gray-400 text-[10px] font-bold tracking-widest uppercase">{property.area_name}</span>
                             <span className="ml-auto">
                                 <ShareListing
-                                    propertyId={formattedProperty.property_id}
-                                    address={formattedProperty.address}
-                                    areaName={formattedProperty.area_name}
-                                    propertyType={formattedProperty.property_type}
-                                    rent={formattedProperty.rent}
+                                    propertyId={property.property_id}
+                                    address={property.address}
+                                    areaName={property.area_name}
+                                    propertyType={property.property_type}
+                                    rent={property.rent}
                                     verdictText={verdictText}
                                 />
                             </span>
                         </div>
-                        <h1 className="text-4xl md:text-6xl font-black text-white leading-[1.1] mb-2 tracking-tighter">
-                            {formattedProperty.address}
-                        </h1>
+                        <h1 className="text-3xl md:text-5xl font-black text-white leading-[1.1] tracking-tighter break-words">{property.address}</h1>
                     </div>
 
-                    {/* Property Image Gallery */}
-                    {formattedProperty.images.length > 0 ? (
+                    {images.length > 0 ? (
                         <div className="flex flex-col gap-2">
-                            <div className="relative w-full aspect-[4/3] overflow-hidden bg-[#050505] border border-white/10 group">
-                                <img
-                                    src={formattedProperty.images[0]}
-                                    alt={formattedProperty.address}
-                                    className="w-full h-full object-cover transition-transform transform group-hover:scale-105 duration-1000"
-                                />
+                            <div className="w-full aspect-[4/3] overflow-hidden bg-[#050505] border border-white/10">
+                                <img src={images[0]} alt={`${property.property_type} in ${property.area_name}`} fetchPriority="high" decoding="async" className="w-full h-full object-cover" />
                             </div>
-                            {formattedProperty.images.length > 1 && (
+                            {images.length > 1 && (
                                 <div className="grid grid-cols-3 gap-2">
-                                    {formattedProperty.images.slice(1, 4).map((img: string, idx: number) => (
-                                        <div key={idx} className="relative aspect-[4/3] overflow-hidden bg-[#050505] border border-white/10 group">
-                                            <img
-                                                src={img}
-                                                alt={`${formattedProperty.address} - ${idx + 2}`}
-                                                className="w-full h-full object-cover transition-transform transform group-hover:scale-105 duration-700"
-                                            />
+                                    {images.slice(1, 4).map((img, idx) => (
+                                        <div key={idx} className="aspect-[4/3] overflow-hidden bg-[#050505] border border-white/10">
+                                            <img src={img} alt={`Photo ${idx + 2}`} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                                         </div>
                                     ))}
                                 </div>
                             )}
                         </div>
-                    ) : formattedProperty.image_data ? (
-                        <div className="relative w-full aspect-[4/3] overflow-hidden bg-[#050505] border border-white/10 group">
-                            <img
-                                src={`data:image/jpeg;base64,${formattedProperty.image_data}`}
-                                alt={formattedProperty.address}
-                                className="w-full h-full object-cover"
-                            />
+                    ) : property.image_data ? (
+                        <div className="w-full aspect-[4/3] overflow-hidden bg-[#050505] border border-white/10">
+                            <img src={`data:image/jpeg;base64,${property.image_data}`} alt={property.address} className="w-full h-full object-cover" />
                         </div>
                     ) : (
-                        <div className="relative w-full aspect-[4/3] overflow-hidden bg-[#050505] border border-white/10 flex flex-col items-center justify-center text-gray-500 font-mono text-xs tracking-widest">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            NO MEDIA AVAILABLE
-                        </div>
+                        <div className="w-full aspect-[4/3] bg-[#050505] border border-white/10 flex items-center justify-center text-gray-600 font-mono text-xs tracking-widest">NO PHOTOS</div>
                     )}
 
-                    {/* Metadata Grid */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-8 py-8 border-y border-white/10">
-                        <div>
-                            <p className="text-[10px] text-gray-500 font-bold tracking-widest uppercase mb-2">Area Scope</p>
-                            <p className="text-2xl font-black text-white tracking-tighter flex items-end gap-2">
-                                {formattedProperty.size} <span className="text-[10px] font-bold text-gray-500 tracking-widest mb-1.5 uppercase">sq ft</span>
-                            </p>
-                        </div>
-                        <div>
-                            <p className="text-[10px] text-gray-500 font-bold tracking-widest uppercase mb-2">Bathrooms</p>
-                            <p className="text-2xl font-black text-white tracking-tighter flex items-end gap-2">
-                                {formattedProperty.bathrooms ?? 'N/A'}
-                            </p>
-                        </div>
-                        <div>
-                            <p className="text-[10px] text-gray-500 font-bold tracking-widest uppercase mb-2">Deposit</p>
-                            <p className="text-base font-bold text-white tracking-tight flex items-end gap-2 h-full pb-1">
-                                {formattedProperty.deposit
-                                    ? `₹${Number(formattedProperty.deposit).toLocaleString('en-IN')}`
-                                    : 'Not specified'}
-                            </p>
-                        </div>
-                        <div>
-                            <p className="text-[10px] text-gray-500 font-bold tracking-widest uppercase mb-2">Parking</p>
-                            <p className="text-base font-bold text-white tracking-tight flex items-end gap-2 h-full pb-1">
-                                {formattedProperty.parking === true ? 'Allocated slot' : formattedProperty.parking === false ? 'Not available' : 'Not specified'}
-                            </p>
-                        </div>
-                        <div>
-                            <p className="text-[10px] text-gray-500 font-bold tracking-widest uppercase mb-2">Furnishing</p>
-                            <p className="text-base font-bold text-[#00A699] tracking-tight flex items-end gap-2 h-full pb-1">
-                                {formattedProperty.furnishing_status || 'Unfurnished'}
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* About Property */}
-                    {formattedProperty.description && (
-                        <div className="pt-4">
-                            <h3 className="text-[10px] text-gray-500 font-bold tracking-widest uppercase mb-4">About this Property</h3>
-                            <p className="text-gray-300 text-sm leading-relaxed font-medium">
-                                {formattedProperty.description}
-                            </p>
-                        </div>
-                    )}
-
-                    {/* Tenant Specs & Amenities */}
-                    <div className="pt-4 flex flex-col gap-6 w-full">
-                        <div>
-                            <h3 className="text-[10px] text-gray-500 font-bold tracking-widest uppercase mb-4">Tenant Requirements</h3>
-                            <div className="inline-flex items-center px-4 py-2 bg-white/5 border border-white/10 text-xs font-bold text-white tracking-widest">
-                                {formattedProperty.preferences || 'Unrestricted'}
+                    <dl className="grid grid-cols-2 md:grid-cols-3 gap-6 py-8 border-y border-white/10">
+                        {facts.map(([k, v]) => (
+                            <div key={k}>
+                                <dt className="text-[10px] text-gray-400 font-bold tracking-widest uppercase mb-2">{k}</dt>
+                                <dd className="text-base font-bold text-white">{v}</dd>
                             </div>
-                        </div>
-
-                        {formattedProperty.amenities && formattedProperty.amenities.length > 0 && (
-                            <div>
-                                <h3 className="text-[10px] text-gray-500 font-bold tracking-widest uppercase mb-4 mt-6">Amenities Included</h3>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                    {formattedProperty.amenities.map((amenity: string, idx: number) => (
-                                        <div key={idx} className="flex items-center p-3 border border-white/5 bg-[#050505]">
-                                            <span className="w-1.5 h-1.5 bg-[#00A699] rounded-full mr-3"></span>
-                                            <span className="text-xs font-bold text-gray-300 tracking-wider uppercase">{amenity}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Multimedia Hub (Virtual Tour & Location) */}
-                    <InteractiveMediaLinks google_maps_link={formattedProperty.google_maps_link} />
-
-                    {/* Community trust — flag bad listings */}
-                    <div className="pt-2">
-                        <ReportListing propertyId={formattedProperty.property_id} />
-                    </div>
-                </div>
-
-                {/* Right Column: Pricing & Action — NOT sticky to prevent overlap */}
-                <div className="w-full md:w-[400px] flex flex-col gap-6 flex-shrink-0">
-                    <ApplicationCard
-                        property_id={formattedProperty.property_id}
-                        landlord_id={formattedProperty.landlord_id}
-                        rent={formattedProperty.rent}
-                        landlord_phone={formattedProperty.landlord_phone}
-                        predictedPrice={predictedPrice}
-                        isGoodDeal={isGoodDeal}
-                        differencePercent={differencePercent}
-                        source={formattedProperty.source}
-                        source_url={formattedProperty.source_url}
-                        contact_name={formattedProperty.contact_name}
-                        contact_phone={formattedProperty.contact_phone}
-                    />
-
-                    {/* Only show tour booking for internal/platform listings */}
-                    {formattedProperty.source !== 'scraped' && (
-                        <TourScheduler propertyId={formattedProperty.property_id} />
-                    )}
-
-                    <CommuteAnalyzer propertyArea={formattedProperty.area_name} />
-
-                    <AffordabilityCalculator monthlyRent={formattedProperty.rent} />
-                </div>
-            </div>
-
-            {/* Neighborhood Intelligence */}
-            <div className="max-w-5xl w-full mt-4">
-                <NeighborhoodProfile areaName={formattedProperty.area_name} />
-            </div>
-
-            {/* Verified Rating System */}
-            <div className="max-w-5xl w-full mt-4">
-                <PropertyReviews propertyId={formattedProperty.property_id} />
-            </div>
-
-            {/* Recommendation Engine */}
-            {similarProperties.length > 0 && (
-                <div className="max-w-5xl w-full mt-24">
-                    <h3 className="text-sm font-bold text-[#FF385C] uppercase tracking-widest mb-8 flex items-center gap-3">
-                        <span className="w-2 h-2 bg-[#FF385C] rounded-full animate-pulse"></span>
-                        Neural Match Recommendations
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {similarProperties.map(p => (
-                            <PropertyCard key={p.property_id} property={p} />
                         ))}
+                    </dl>
+
+                    {property.description && (
+                        <div>
+                            <h2 className="text-[10px] text-gray-400 font-bold tracking-widest uppercase mb-4">About this flat</h2>
+                            <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-line">{property.description}</p>
+                        </div>
+                    )}
+
+                    {(Boolean(property.preferences) || (property.amenities && property.amenities.length > 0)) && (
+                        <div className="flex flex-col gap-6">
+                            {Boolean(property.preferences) && (
+                                <div>
+                                    <h2 className="text-[10px] text-gray-400 font-bold tracking-widest uppercase mb-3">Tenant preferences</h2>
+                                    <p className="inline-block px-4 py-2 bg-white/5 border border-white/10 text-xs font-bold text-white">{String(property.preferences)}</p>
+                                </div>
+                            )}
+                            {property.amenities && property.amenities.length > 0 && (
+                                <div>
+                                    <h2 className="text-[10px] text-gray-400 font-bold tracking-widest uppercase mb-3">Amenities</h2>
+                                    <ul className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                        {property.amenities.map((a: string) => (
+                                            <li key={a} className="p-3 border border-white/5 bg-[#050505] text-xs font-bold text-gray-300 uppercase tracking-wider">{a}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <InteractiveMediaLinks google_maps_link={(property.google_maps_link as string) || null} />
+                    <ReportListing propertyId={property.property_id} />
+                </div>
+
+                <div className="w-full md:w-[380px] flex flex-col gap-6 flex-shrink-0">
+                    <ApplicationCard
+                        property_id={property.property_id}
+                        landlord_id={(property.landlord_id as string) || null}
+                        rent={property.rent}
+                        landlord_phone={(property.landlord_phone as string) || null}
+                        verdict={verdict}
+                        p25={stat?.p25}
+                        p75={stat?.p75}
+                        source={property.source}
+                        source_url={property.source_url}
+                    />
+                    {property.source !== 'scraped' && <TourScheduler propertyId={property.property_id} />}
+                    <CommuteAnalyzer propertyArea={property.area_name} latitude={property.latitude} longitude={property.longitude} />
+                    <AffordabilityCalculator monthlyRent={property.rent} />
+                </div>
+            </div>
+
+            <div className="max-w-5xl w-full mt-6 flex flex-col gap-6">
+                <NeighborhoodProfile areaId={areaId} areaName={property.area_name} stats={areaStats} paid={(paidData || []) as { property_type: string; median: number; count: number }[]} />
+                <PropertyReviews propertyId={property.property_id} initialReviews={(reviewData || []) as Review[]} />
+            </div>
+
+            {similar.length > 0 && (
+                <div className="max-w-5xl w-full mt-20">
+                    <h2 className="text-sm font-bold text-[#FF385C] uppercase tracking-widest mb-8">
+                        Cheapest similar {property.property_type} in {property.area_name}
+                    </h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {similar.map(p => <PropertyCard key={p.property_id} property={p} marketStat={stat} />)}
                     </div>
                 </div>
             )}

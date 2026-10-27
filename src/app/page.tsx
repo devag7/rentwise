@@ -1,105 +1,97 @@
 import Link from 'next/link';
+import { createPublicClient } from '@/utils/supabase/public';
+import { getMarketStats, getActiveListingCount } from '@/utils/market';
 
-export default function Home() {
+export const revalidate = 1800;
+
+export default async function Home() {
+  const supabase = createPublicClient();
+  const [stats, active] = await Promise.all([getMarketStats(supabase), getActiveListingCount(supabase)]);
+  const markets = Object.keys(stats).length;
+
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white font-sans selection:bg-[#FF385C] selection:text-white">
-
-      {/* Hero Section */}
-      <section className="relative pt-40 pb-32 lg:pt-56 lg:pb-48 overflow-hidden">
-
-        {/* Abstract Architectural Background Hint */}
-        <div className="absolute inset-0 z-0 opacity-20">
-          <div className="absolute right-0 top-0 w-1/2 h-full border-l border-white/10 skew-x-12 translate-x-32"></div>
-          <div className="absolute left-1/4 bottom-0 w-px h-1/2 bg-white/10"></div>
-          <div className="absolute right-1/4 top-1/4 w-32 h-32 rounded-full border border-[#FF385C]/30 blur-sm"></div>
-        </div>
-
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 relative z-10">
+    <div className="min-h-screen bg-[#0A0A0A] text-white selection:bg-[#FF385C] selection:text-white">
+      <section className="relative pt-36 pb-24 lg:pt-48 lg:pb-36 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="max-w-4xl">
-            <div className="inline-flex items-center gap-3 px-3 py-1.5 border border-white/10 text-xs font-bold tracking-widest text-[#FF385C] uppercase mb-8 backdrop-blur-sm">
-              <span className="flex h-1.5 w-1.5 bg-[#FF385C] rounded-full animate-pulse"></span>
-              Proprietary Pricing Model 2.0
-            </div>
-            <h1 className="text-6xl lg:text-8xl font-black tracking-tighter mb-8 leading-[1.1] text-white">
+            <p className="inline-flex items-center gap-3 px-3 py-1.5 border border-white/10 text-xs font-bold tracking-widest text-[#FF385C] uppercase mb-8">
+              <span className="h-1.5 w-1.5 bg-[#FF385C] rounded-full" />
+              Bangalore rent intelligence
+            </p>
+            <h1 className="text-5xl sm:text-6xl lg:text-8xl font-black tracking-tighter mb-8 leading-[1.05]">
               Stop guessing. <br />
               <span className="text-gray-500">KNOW what it&apos;s worth.</span>
             </h1>
-            <p className="text-xl lg:text-2xl text-gray-400 mb-12 leading-relaxed max-w-2xl font-light">
-              Every Bangalore listing priced against live market comparables — under market, at market, or over market, with the comps to prove it.
+            <p className="text-lg sm:text-xl lg:text-2xl text-gray-300 mb-10 leading-relaxed max-w-2xl font-light">
+              Every Bangalore listing priced against real comparable listings in the same area and BHK — under market, at market, or over — with the comps count to prove it.
             </p>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Link href="/check" className="inline-flex justify-center items-center px-8 py-4 text-sm font-bold tracking-widest uppercase bg-[#00A699] text-white hover:bg-white hover:text-black transition-colors">
+                Is my rent fair?
+              </Link>
+              <Link href="/properties" className="inline-flex justify-center items-center px-8 py-4 text-sm font-bold tracking-widest uppercase bg-white text-black hover:bg-[#FF385C] hover:text-white transition-colors">
+                Browse flats
+              </Link>
+              <Link href="/insights" className="inline-flex justify-center items-center px-8 py-4 text-sm font-bold tracking-widest uppercase border border-white/20 text-white hover:border-white transition-colors">
+                Rent index
+              </Link>
+            </div>
+            {active > 0 && (
+              <p className="mt-10 text-xs font-mono text-gray-400 uppercase tracking-widest">
+                {active.toLocaleString('en-IN')} live listings · {markets} area·BHK markets priced · refreshed twice daily
+              </p>
+            )}
+          </div>
+        </div>
+      </section>
 
-            <div className="flex flex-col sm:flex-row gap-5">
-              <Link href="/properties" className="inline-flex justify-center items-center px-8 py-4 text-sm font-bold tracking-widest uppercase bg-white text-black hover:bg-[#FF385C] hover:text-white transition-all duration-300">
-                Browse Collection
-              </Link>
-              <Link href="/register" className="inline-flex justify-center items-center px-8 py-4 text-sm font-bold tracking-widest uppercase border border-white/20 text-white hover:border-white transition-all duration-300 backdrop-blur-md">
-                Landlord Access
-              </Link>
+      <section className="py-24 bg-white text-black">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="mb-16 border-b border-gray-200 pb-8 max-w-2xl">
+            <p className="text-sm font-bold tracking-widest text-[#FF385C] uppercase mb-4">How it works</p>
+            <h2 className="text-4xl sm:text-5xl font-black tracking-tighter">Data, not broker talk.</h2>
+          </div>
+          <div className="grid md:grid-cols-3 gap-x-12 gap-y-12">
+            <div>
+              <p className="mb-4 font-mono text-[#FF385C] text-sm">01 / COMPS</p>
+              <h3 className="text-2xl font-extrabold mb-3 tracking-tight">Median of real listings</h3>
+              <p className="text-gray-600 leading-relaxed text-lg">We compare each flat with live listings of the same BHK in the same area. Fewer than 3 comparables? We say so instead of guessing.</p>
+            </div>
+            <div>
+              <p className="mb-4 font-mono text-[#FF385C] text-sm">02 / HONEST DATA</p>
+              <h3 className="text-2xl font-extrabold mb-3 tracking-tight">Nothing invented</h3>
+              <p className="text-gray-600 leading-relaxed text-lg">Missing fields stay blank. Stale listings expire after two weeks. Anyone can flag a fake listing; three flags hide it.</p>
+            </div>
+            <div>
+              <p className="mb-4 font-mono text-[#FF385C] text-sm">03 / NO LOGIN</p>
+              <h3 className="text-2xl font-extrabold mb-3 tracking-tight">No data hostage</h3>
+              <p className="text-gray-600 leading-relaxed text-lg">Browse, map, check rents and watch an area by email without an account. Owners can list directly, no brokerage.</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Value Proposition Section */}
-      <section className="py-32 bg-white text-black relative">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="mb-24 flex flex-col md:flex-row md:items-end justify-between gap-8 border-b border-gray-200 pb-8">
-            <div className="max-w-2xl">
-              <h2 className="text-sm font-bold tracking-widest text-[#FF385C] uppercase mb-4">The Advantage</h2>
-              <h3 className="text-5xl font-black tracking-tighter text-black">Data-Driven Rentals.</h3>
-            </div>
-            <p className="text-gray-500 max-w-sm text-lg font-light">We strip away the marketing fluff to show you raw metrics and verified assets.</p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-x-12 gap-y-16">
-            {/* Feature 1 */}
-            <div className="group">
-              <div className="mb-6 font-mono text-[#FF385C] text-sm">01 / ANALYTICS</div>
-              <h4 className="text-2xl font-extrabold mb-4 tracking-tight">Algorithmic Valuation</h4>
-              <p className="text-gray-600 leading-relaxed font-light text-lg">
-                Every listing is priced against the median of real comparable listings in the same area and configuration — and we show you how many comps back each verdict.
-              </p>
-            </div>
-
-            {/* Feature 2 */}
-            <div className="group">
-              <div className="mb-6 font-mono text-gray-400 text-sm">02 / VERIFICATION</div>
-              <h4 className="text-2xl font-extrabold mb-4 tracking-tight">Zero Tolerance</h4>
-              <p className="text-gray-600 leading-relaxed font-light text-lg">
-                Fake photos and bait-and-switch tactics are eliminated. What you see on the platform matches reality, guaranteed by our strict intake protocol.
-              </p>
-            </div>
-
-            {/* Feature 3 */}
-            <div className="group">
-              <div className="mb-6 font-mono text-gray-400 text-sm">03 / TRANSACT</div>
-              <h4 className="text-2xl font-extrabold mb-4 tracking-tight">Peer-to-Peer</h4>
-              <p className="text-gray-600 leading-relaxed font-light text-lg">
-                We connect high-intent renters directly with asset owners. No brokers. No hidden fees. Just efficient, transparent communication.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-32 bg-[#0A0A0A] border-t border-white/10 relative overflow-hidden">
-        <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
-          <h2 className="text-5xl md:text-7xl font-black tracking-tighter text-white mb-8">Ready to move?</h2>
-          <p className="text-xl text-gray-400 mb-12 font-light max-w-2xl mx-auto">
-            Join the elite network of renters and landlords who demand transparency and speed in the Bangalore market.
+      <section className="py-24 bg-[#0A0A0A] border-t border-white/10">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
+          <h2 className="text-4xl sm:text-6xl font-black tracking-tighter mb-6">Got a flat in mind?</h2>
+          <p className="text-lg text-gray-300 mb-10 font-light max-w-2xl mx-auto">
+            Paste the listing link or just type &ldquo;2BHK HSR 42k&rdquo; — get the market median, the comps behind it, and cheaper flats nearby.
           </p>
-          <Link href="/register" className="inline-flex justify-center items-center px-12 py-5 text-sm font-bold uppercase tracking-widest bg-[#FF385C] text-white hover:bg-white hover:text-black transition-all duration-300">
-            Initialize Access
+          <Link href="/check" className="inline-flex justify-center items-center px-12 py-5 text-sm font-bold uppercase tracking-widest bg-[#FF385C] text-white hover:bg-white hover:text-black transition-colors">
+            Check a rent
           </Link>
         </div>
       </section>
 
-      {/* Simple Footer */}
-      <footer className="bg-[#050505] py-16">
-        <div className="max-w-7xl mx-auto px-6 text-center text-gray-600 font-mono text-sm">
-          <p className="font-bold text-white mb-4 tracking-widest">RENTWISE<span className="text-[#FF385C]">.</span></p>
-          <p>&copy; {new Date().getFullYear()} RENTWISE TECHNOLOGIES. ALL RIGHTS RESERVED.</p>
+      <footer className="bg-[#050505] py-14">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row gap-6 justify-between text-gray-400 font-mono text-xs">
+          <p className="font-bold text-white tracking-widest">RENTWISE<span className="text-[#FF385C]">.</span></p>
+          <nav className="flex flex-wrap gap-6 uppercase tracking-widest">
+            <Link href="/insights" className="hover:text-white">Rent index</Link>
+            <Link href="/data" className="hover:text-white">Open data</Link>
+            <Link href="/register/landlord" className="hover:text-white">List your flat</Link>
+            <a href="https://github.com/devag7/rentwise" className="hover:text-white">GitHub</a>
+          </nav>
         </div>
       </footer>
     </div>

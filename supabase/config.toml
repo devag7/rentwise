@@ -1,0 +1,16 @@
+project_id = "mcbrjtujlxiihuxcgsph"
+
+# Called from the browser with the anon key (supabase.functions.invoke).
+[functions.check-rent]
+verify_jwt = false
+
+# Called by pg_cron (public.invoke_edge_function) with the x-cron-secret
+# header; the functions check CRON_SECRET / the service role key themselves.
+[functions.sync-nobroker]
+verify_jwt = false
+
+[functions.sync-magicbricks]
+verify_jwt = false
+
+[functions.send-alerts]
+verify_jwt = false

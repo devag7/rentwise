@@ -1,137 +1,138 @@
-import { createClient } from '@/utils/supabase/server';
+import Link from 'next/link';
 import FilterBar from '@/components/FilterBar';
 import PropertiesList from './PropertiesList';
-import { computeMarketStats, marketKey, getVerdict } from '@/utils/market';
-import { getHiddenPropertyIds } from '@/utils/reports';
 import WatchArea from '@/components/WatchArea';
+import { createPublicClient } from '@/utils/supabase/public';
+import { getMarketStats, marketKey, getVerdict, getActiveListingCount } from '@/utils/market';
+import { getHiddenPropertyIds } from '@/utils/reports';
+import { CARD_COLUMNS, toProperty, queryActive, getAreas } from '@/utils/listings';
 
 export const metadata = {
     title: 'Flats for rent in Bangalore with fair-rent verdicts',
     description:
-        'Browse verified Bangalore rental listings priced against real market comparables. Filter by area, budget, BHK — no brokers, no login needed.',
+        'Browse Bangalore rental listings priced against real market comparables. Filter by area, budget, BHK and market verdict — no brokers, no login needed.',
     alternates: { canonical: '/properties' },
 };
 
-export default async function Properties({
-    searchParams,
-}: {
-    searchParams: Promise<{ [key: string]: string | string[] | undefined }>
-}) {
+const PAGE_SIZE = 48;
+// Verdict filtering happens after the SQL query, so fetch a bounded window.
+const FETCH_WINDOW = 400;
+
+type Params = { [key: string]: string | string[] | undefined };
+const str = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) || '';
+
+export default async function Properties({ searchParams }: { searchParams: Promise<Params> }) {
     const params = await searchParams;
-    const supabase = await createClient();
+    const supabase = createPublicClient();
 
-    let query = supabase.from('properties').select(`
-        *,
-        areas ( name )
-    `);
+    const area_id = str(params.area_id);
+    const property_type = str(params.property_type);
+    const min_rent = str(params.min_rent);
+    const max_rent = str(params.max_rent);
+    const furnishing_status = str(params.furnishing_status);
+    const parking = str(params.parking);
+    const source = str(params.source);
+    const sort_by = str(params.sort_by) || 'newest';
+    const verdict_filter = str(params.verdict);
+    const posted_within = str(params.posted_within);
+    const page = Math.max(1, parseInt(str(params.page) || '1') || 1);
 
-    // Extract filters from URL searchParams
-    const area_id = params.area_id as string;
-    const property_type = params.property_type as string;
-    const min_rent = params.min_rent as string;
-    const max_rent = params.max_rent as string;
-    const furnishing_status = params.furnishing_status as string;
-    const parking = params.parking as string;
-    const source = params.source as string;
-    const sort_by = params.sort_by as string || 'newest';
-    const verdict_filter = params.verdict as string;
-    const posted_within = params.posted_within as string;
+    // Server Component: runs once per request, not in a render loop.
+    // eslint-disable-next-line react-hooks/purity
+    const now = Date.now();
 
-    if (area_id) query = query.eq('area_id', area_id);
-    if (property_type) query = query.eq('property_type', property_type);
-    if (min_rent) query = query.gte('rent', min_rent);
-    if (max_rent) query = query.lte('rent', max_rent);
-    if (furnishing_status) query = query.eq('furnishing_status', furnishing_status);
-    if (parking === 'true') query = query.eq('parking', true);
-    if (source) query = query.eq('source', source);
-    if (posted_within && /^\d+$/.test(posted_within)) {
-        // Server Component: runs once per request, not in a render loop —
-        // Date.now() is safe here despite the react-hooks/purity rule.
-        // eslint-disable-next-line react-hooks/purity
-        const cutoff = new Date(Date.now() - parseInt(posted_within) * 86400000).toISOString();
-        query = query.gte('scraped_at', cutoff);
-    }
+    const listingsPromise = queryActive((activeOnly) => {
+        let q = supabase.from('properties').select(CARD_COLUMNS);
+        if (activeOnly) q = q.eq('is_active', true);
+        if (/^\d+$/.test(area_id)) q = q.eq('area_id', area_id);
+        if (property_type) q = q.eq('property_type', property_type);
+        if (/^\d+$/.test(min_rent)) q = q.gte('rent', min_rent);
+        if (/^\d+$/.test(max_rent)) q = q.lte('rent', max_rent);
+        if (furnishing_status) q = q.eq('furnishing_status', furnishing_status);
+        if (parking === 'true') q = q.eq('parking', true);
+        if (source) q = q.eq('source', source);
+        if (/^\d+$/.test(posted_within)) {
+            q = q.gte('created_at', new Date(now - parseInt(posted_within) * 86400000).toISOString());
+        }
+        if (sort_by === 'price_asc') q = q.order('rent', { ascending: true });
+        else if (sort_by === 'price_desc') q = q.order('rent', { ascending: false });
+        else if (sort_by === 'size_desc') q = q.order('size', { ascending: false, nullsFirst: false });
+        else q = q.order('created_at', { ascending: false });
+        return q.limit(FETCH_WINDOW);
+    });
 
-    // Sorting logic
-    if (sort_by === 'price_asc') {
-        query = query.order('rent', { ascending: true });
-    } else if (sort_by === 'price_desc') {
-        query = query.order('rent', { ascending: false });
-    } else if (sort_by === 'size_desc') {
-        query = query.order('size', { ascending: false });
-    } else {
-        query = query.order('created_at', { ascending: false });
-    }
-
-    // Market medians come from the FULL inventory (unfiltered) so verdicts
-    // aren't distorted by whatever filters the user has applied.
-    const [{ data, error }, { data: compRows }, hidden] = await Promise.all([
-        query,
-        supabase.from('properties').select('area_id, property_type, rent'),
+    // Medians come from the full active inventory (a DB view), so verdicts
+    // aren't distorted by whatever filters the user applied.
+    const [{ data }, marketStats, hidden, areas, totalActive] = await Promise.all([
+        listingsPromise,
+        getMarketStats(supabase),
         getHiddenPropertyIds(supabase),
+        getAreas(supabase),
+        getActiveListingCount(supabase),
     ]);
 
-    const marketStats = computeMarketStats(compRows || []);
+    let listings = ((data || []) as Record<string, unknown>[])
+        .map(toProperty)
+        .filter(p => !hidden.has(p.property_id));
 
-    let formattedData = data && !error
-        ? data
-            .filter(item => !hidden.has(item.property_id)) // drop community-flagged listings
-            .map(item => ({
-                ...item,
-                area_name: item.areas?.name || 'Unknown Area'
-            }))
-        : [];
-
-    // Verdict filter — RentWise's signature. Can't be a SQL filter because
-    // the verdict is computed against per-(area,type) medians.
-    if (verdict_filter) {
-        const want = verdict_filter === 'under' ? 'UNDER MARKET'
-            : verdict_filter === 'over' ? 'OVER MARKET'
-                : verdict_filter === 'at' ? 'AT MARKET' : null;
-        if (want) {
-            formattedData = formattedData.filter(p => {
-                const v = getVerdict(p.rent, marketStats[marketKey(p.area_id, p.property_type)]);
-                return v?.label === want;
-            });
-        }
+    const want = { under: 'UNDER MARKET', over: 'OVER MARKET', at: 'AT MARKET' }[verdict_filter];
+    if (want) {
+        listings = listings.filter(p =>
+            getVerdict(p.rent, marketStats[marketKey(p.area_id, p.property_type)])?.label === want
+        );
     }
 
-    // Live social proof, computed from real verdicts (not a vanity counter).
-    const totalAnalyzed = (compRows || []).length;
-    const underMarketNow = formattedData.filter(p => {
-        const v = getVerdict(p.rent, marketStats[marketKey(p.area_id, p.property_type)]);
-        return v?.label === 'UNDER MARKET';
-    }).length;
+    const underMarketNow = listings.filter(p =>
+        getVerdict(p.rent, marketStats[marketKey(p.area_id, p.property_type)])?.label === 'UNDER MARKET'
+    ).length;
+
+    const shown = listings.slice(0, page * PAGE_SIZE);
+    const hasMore = listings.length > shown.length;
+    const nextParams = new URLSearchParams(
+        Object.entries(params).flatMap(([k, v]) => (v ? [[k, str(v)]] : []))
+    );
+    nextParams.set('page', String(page + 1));
 
     return (
-        <div className="w-full pt-32 pb-24 px-6 bg-[#0A0A0A] text-white min-h-screen selection:bg-[#FF385C] selection:text-white">
+        <div className="w-full pt-28 pb-24 px-4 sm:px-6 bg-[#0A0A0A] text-white min-h-screen selection:bg-[#FF385C] selection:text-white">
             <div className="max-w-7xl mx-auto">
                 <div className="mb-8">
-                    <h2 className="text-sm font-bold tracking-widest text-[#FF385C] uppercase mb-4">Live Inventory</h2>
-                    <h3 className="text-5xl font-black tracking-tighter text-white">Analyzed Properties.</h3>
+                    <p className="text-sm font-bold tracking-widest text-[#FF385C] uppercase mb-4">Live inventory</p>
+                    <h1 className="text-4xl sm:text-5xl font-black tracking-tighter text-white">Flats for rent in Bangalore, priced against real comps.</h1>
                 </div>
 
-                {/* Social proof — computed live from real comps, not a vanity metric */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-px bg-white/10 border border-white/10 mb-12">
-                    <div className="bg-[#0A0A0A] p-5">
-                        <p className="text-3xl font-black text-white tracking-tighter">{totalAnalyzed.toLocaleString('en-IN')}</p>
-                        <p className="text-[10px] font-mono text-gray-500 uppercase tracking-widest mt-1">Listings priced</p>
+                <div className="grid grid-cols-3 gap-px bg-white/10 border border-white/10 mb-10">
+                    <div className="bg-[#0A0A0A] p-4 sm:p-5">
+                        <p className="text-2xl sm:text-3xl font-black text-white tracking-tighter">{totalActive.toLocaleString('en-IN')}</p>
+                        <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mt-1">Active listings</p>
                     </div>
-                    <div className="bg-[#0A0A0A] p-5">
-                        <p className="text-3xl font-black text-[#00A699] tracking-tighter">{underMarketNow}</p>
-                        <p className="text-[10px] font-mono text-gray-500 uppercase tracking-widest mt-1">Under market now</p>
+                    <div className="bg-[#0A0A0A] p-4 sm:p-5">
+                        <p className="text-2xl sm:text-3xl font-black text-[#00A699] tracking-tighter">{underMarketNow}</p>
+                        <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mt-1">Under market here</p>
                     </div>
-                    <div className="bg-[#0A0A0A] p-5 col-span-2 sm:col-span-1">
-                        <p className="text-3xl font-black text-white tracking-tighter">{Object.keys(marketStats).length}</p>
-                        <p className="text-[10px] font-mono text-gray-500 uppercase tracking-widest mt-1">Area·BHK markets tracked</p>
+                    <div className="bg-[#0A0A0A] p-4 sm:p-5">
+                        <p className="text-2xl sm:text-3xl font-black text-white tracking-tighter">{Object.keys(marketStats).length}</p>
+                        <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mt-1">Markets tracked</p>
                     </div>
                 </div>
 
-                <FilterBar />
+                <FilterBar areas={areas} />
 
-                <PropertiesList properties={formattedData} marketStats={marketStats} />
+                <PropertiesList properties={shown} total={listings.length} marketStats={marketStats} />
 
-                <WatchArea />
+                {hasMore && (
+                    <div className="mt-12 flex justify-center">
+                        <Link
+                            href={`/properties?${nextParams.toString()}`}
+                            scroll={false}
+                            className="px-8 py-4 border border-white/20 text-white text-xs font-bold tracking-widest uppercase hover:border-white transition-colors"
+                        >
+                            Show more flats
+                        </Link>
+                    </div>
+                )}
+
+                <WatchArea areas={areas} />
             </div>
         </div>
     );

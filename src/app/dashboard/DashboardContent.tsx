@@ -146,8 +146,8 @@ export default function DashboardContent() {
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            if (file.size > 500 * 1024) {
-                toast.error('Image size must be less than 500KB');
+            if (file.size > 5 * 1024 * 1024) {
+                toast.error('Image must be under 5MB');
                 e.target.value = '';
                 return;
             }
@@ -175,10 +175,16 @@ export default function DashboardContent() {
         const loadingToast = toast.loading('Publishing Listing...');
 
         try {
-            let base64Image = null;
+            // Photos go to Supabase Storage (public CDN URL), not base64 in the row.
+            let imageUrl: string | null = null;
             if (imageFile) {
-                const buffer = await imageFile.arrayBuffer();
-                base64Image = Buffer.from(buffer).toString('base64');
+                const ext = imageFile.type === 'image/png' ? 'png' : 'jpg';
+                const path = `${userId}/${Date.now()}.${ext}`;
+                const { error: upErr } = await supabase.storage
+                    .from('listing-images')
+                    .upload(path, imageFile, { contentType: imageFile.type, cacheControl: '31536000' });
+                if (upErr) throw upErr;
+                imageUrl = supabase.storage.from('listing-images').getPublicUrl(path).data.publicUrl;
             }
 
             const { error } = await supabase
@@ -198,7 +204,7 @@ export default function DashboardContent() {
                     furnishing_status: formData.furnishing_status || null,
                     parking: formData.parking === '' ? null : formData.parking === 'yes',
                     description: formData.description || null,
-                    image_data: base64Image
+                    image_url: imageUrl,
                 });
 
             if (error) throw error;
@@ -474,7 +480,7 @@ export default function DashboardContent() {
                                 </div>
 
                                 <div className="pt-2">
-                                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Photo (JPEG/PNG, max 500KB)</label>
+                                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Photo (JPEG/PNG, max 5MB)</label>
                                     <div className="flex items-center gap-4">
                                         <label className="cursor-pointer inline-flex items-center px-4 py-3 bg-white/5 border border-white/20 hover:bg-white/10 text-white transition-colors font-mono uppercase tracking-widest text-[10px] font-bold">
                                             Choose photo
