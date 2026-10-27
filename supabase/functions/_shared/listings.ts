@@ -37,6 +37,9 @@ export interface UpsertResult {
  *  Matches the areas_name_key_uniq index (phase 17). */
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
 
+/** City-level names are not a market; never file listings under them. */
+const CITY_NAMES = new Set(['bangalore', 'bengaluru', 'bangaloreurban', 'bengaluruurban']);
+
 /** Scraped "locality" fields are sometimes street addresses or landmarks. */
 const looksLikeLocality = (s: string) => !/[0-9,]/.test(s) && s.trim().split(/\s+/).length <= 4 && s.trim().length >= 3;
 
@@ -75,13 +78,21 @@ export class AreaIndex {
         const t = norm(text);
         let best: string | null = null;
         for (const [key, id] of this.byName) {
-            if (key.length >= 5 && t.includes(key) && (!best || key.length > norm(best).length)) best = this.names.get(id) ?? null;
+            if (key.length >= 5 && !CITY_NAMES.has(key) && t.includes(key) && (!best || key.length > norm(best).length)) best = this.names.get(id) ?? null;
         }
         return best;
     }
 
-    /** Canonical area name for a scraped locality, or null if it can't be placed. */
-    resolve(locality: string, address?: string | null): string | null {
+    /**
+     * Canonical area name for a scraped locality, or null if it can't be placed.
+     * `title` is the listing title ("2 BHK Flat for Rent In Hongasandra"): when the
+     * locality is only the city name, the area after "for Rent In" is used instead.
+     */
+    resolve(locality: string, address?: string | null, title?: string | null): string | null {
+        if (CITY_NAMES.has(norm(locality))) {
+            const fromTitle = title?.match(/\bfor\s+rent\s+in\s+(.+?)\s*$/i)?.[1];
+            return fromTitle && !CITY_NAMES.has(norm(fromTitle)) ? this.resolve(fromTitle, address) : null;
+        }
         const known = this.get(locality);
         if (known != null) return this.names.get(known) ?? null;
         const inside = this.findIn(`${locality} ${address ?? ''}`);
@@ -147,7 +158,7 @@ export async function upsertListings(
     // Map scraped localities onto canonical areas; skip ones that can't be placed
     // (street addresses with no known locality inside) instead of creating junk areas.
     for (const r of rows) {
-        const resolved = areas.resolve(r.area_name, r.description);
+        const resolved = areas.resolve(r.area_name, r.description, r.address);
         r.area_name = resolved ?? '';
     }
     await areas.ensure(rows.map((r) => r.area_name).filter(Boolean));
@@ -216,6 +227,8 @@ export async function upsertListings(
 
     for (const batch of chunk(toUpdate, 10)) {
         await Promise.all(batch.map(async (l) => {
+            // Re-file under the canonical area on every scrape (self-heals old rows).
+            const areaId = areas.get(l.area_name);
             const patch: Record<string, unknown> = {
                 rent: l.rent,
                 scraped_at: now,
@@ -224,6 +237,7 @@ export async function upsertListings(
                 contact_name: null,
                 contact_phone: null,
             };
+            if (areaId) patch.area_id = areaId;
             if (l.image_url) patch.image_url = l.image_url;
             if (l.deposit != null) patch.deposit = l.deposit;
             if (l.latitude != null && l.longitude != null) {
