@@ -91,6 +91,7 @@ export default async function Home() {
             <Link href="/data" className="hover:text-white">Open data</Link>
             <Link href="/register/landlord" className="hover:text-white">List your flat</Link>
             <a href="https://github.com/devag7/rentwise" className="hover:text-white">GitHub</a>
+            <a href="mailto:rentwise@devshipit.com" className="hover:text-white">Contact</a>
           </nav>
         </div>
       </footer>

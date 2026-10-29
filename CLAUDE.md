@@ -1,6 +1,6 @@
 # RentWise
 
-Rental listings platform for Bangalore. Next.js 16 App Router on Vercel + Supabase (auth, Postgres, RLS, realtime, Storage, Edge Functions, pg_cron) + Mapbox. Edge Functions scrape MagicBricks (cheerio) and NoBroker (Apify actor) into the `properties` table. Production: https://rentwise.devshipit.com
+Rental listings platform for Bangalore. Next.js 16 App Router on Vercel + Supabase (auth, Postgres, RLS, realtime, Storage, Edge Functions, pg_cron) + Mapbox. Edge Functions pull NoBroker and MagicBricks listings through Apify actors into the `properties` table (MagicBricks blocks cloud IPs, so no direct scraping). Production: https://rentwise.devshipit.com
 
 ## Commands
 
