@@ -191,41 +191,41 @@ Reduce the risk:
 ## 7. Implementation plan (sequenced; one PR per line)
 
 ### Week 0 — Owner (blocking)
-- [ ] Buy a domain, put Cloudflare in front, set up HTTPS; set `NEXT_PUBLIC_SITE_URL`; set Supabase auth URL
-- [ ] Confirm GitHub repo variables `NEXT_PUBLIC_SUPABASE_URL/ANON_KEY/MAPBOX_TOKEN` are set
-- [ ] Pick an email sender (Resend free tier) and verify the domain
+- [x] Buy a domain, put Cloudflare in front, set up HTTPS; set `NEXT_PUBLIC_SITE_URL`; set Supabase auth URL
+- [x] Confirm GitHub repo variables `NEXT_PUBLIC_SUPABASE_URL/ANON_KEY/MAPBOX_TOKEN` are set (now Vercel env vars)
+- [x] Pick an email sender (Resend free tier) and verify the domain
 - [ ] Rotate the Apify token (flagged in SCALE_PLAN)
 
 ### Week 1 — Trust (P0)
-- [ ] Remove the fake PaymentModal, the mock reviews, the fake commute numbers and the hardcoded neighbourhood scores; honest copy on the homepage and lease
-- [ ] Replace the "AI prediction" fallback with "not enough comps"
-- [ ] Stop defaulting unknown BHK to 2BHK and unknown size to 500; drop scraped phone numbers
-- [ ] Add MIT LICENSE; rewrite README (pitch, GIF, live link, self-host quickstart)
+- [x] Remove the fake PaymentModal, the mock reviews, the fake commute numbers and the hardcoded neighbourhood scores; honest copy on the homepage and lease
+- [x] Replace the "AI prediction" fallback with "not enough comps"
+- [x] Stop defaulting unknown BHK to 2BHK and unknown size to 500; drop scraped phone numbers
+- [x] Add MIT LICENSE; rewrite README (pitch, GIF, live link, self-host quickstart)
 
 _Done when:_ `grep -rn "mock\|Math.random\|setTimeout" src/components/property` returns nothing user-facing, and every number on a listing page traces to a DB row.
 
 ### Week 2 — Data correctness
-- [ ] Migration `phase15`: `last_seen_at`, `is_active`, a `market_stats` view (percentile_cont), an `area_rent_history` daily snapshot table, and the area-watch unique-index fix
-- [ ] Switch the listings page, `/insights` and the detail page to the view; cookie-less client on `/insights`
-- [ ] Scraper marks rows inactive when not seen for 14 days
+- [x] Migration `phase15`: `last_seen_at`, `is_active`, a `market_stats` view (percentile_cont), an `area_rent_history` daily snapshot table, and the area-watch unique-index fix
+- [x] Switch the listings page, `/insights` and the detail page to the view; cookie-less client on `/insights`
+- [x] Scraper marks rows inactive when not seen for 14 days
 
 ### Week 3 — Retention loop
-- [ ] Daily cron: match new active listings to `area_watches` and send one digest email via Resend with an unsubscribe link (add `unsubscribe_token`)
-- [ ] Contact-reveal and alert-click events in analytics
+- [x] Daily cron: match new active listings to `area_watches` and send one digest email via Resend with an unsubscribe link (add `unsubscribe_token`)
+- [x] Contact-reveal and alert-click events in analytics
 
 ### Week 4 — AI fair-rent checker
-- [ ] `/check` page: paste a link or text → parse (LLM) → SQL median → verdict, comps, 3 cheaper alternatives, negotiation script
-- [ ] Shareable result card (OG image) for WhatsApp/X
-- [ ] Rate limit plus a cache of parsed URLs
+- [x] `/check` page: paste a link or text → parse (LLM) → SQL median → verdict, comps, 3 cheaper alternatives, negotiation script
+- [x] Shareable result card (OG image) for WhatsApp/X
+- [x] Rate limit plus a cache of parsed URLs
 
 ### Weeks 5–6 — SEO + open data + launch
-- [ ] `/bangalore/rent/[area]/[bhk]` pages with trend charts from `area_rent_history`
-- [ ] Open dataset Action (CSV/Parquet aggregates, CC-BY) and a static chart page
-- [ ] Anonymous "What do you pay?" submission ("asking vs actually paid")
+- [x] `/bangalore/rent/[area]/[bhk]` pages with trend charts from `area_rent_history`
+- [x] Open dataset Action (CSV/Parquet aggregates, CC-BY) and a static chart page
+- [x] Anonymous "What do you pay?" submission ("asking vs actually paid")
 - [ ] Launch day: Show HN + r/bangalore data post + X thread; then a monthly rent report
 
 ### Later
-- [ ] Mobile filter drawer; `/properties` h1; per-page titles; `middleware.ts` → `proxy.ts`
+- [x] Mobile filter drawer; `/properties` h1; per-page titles; `middleware.ts` → `proxy.ts`
 - [ ] WhatsApp bot; landlord stats dashboard; second city
 
 ### Metrics to watch (`analytics_daily_summary`)

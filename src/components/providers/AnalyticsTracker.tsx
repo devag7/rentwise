@@ -12,7 +12,15 @@ export default function AnalyticsTracker() {
     const pathname = usePathname();
 
     useEffect(() => {
-        if (pathname) track('page_view', { pathname });
+        if (!pathname) return;
+        // Campaign tags (e.g. ?utm_source=alert from alert emails) so clicks can be attributed.
+        const params = new URLSearchParams(window.location.search);
+        const props: Record<string, string> = { pathname };
+        for (const key of ['utm_source', 'utm_medium', 'utm_campaign']) {
+            const v = params.get(key);
+            if (v) props[key] = v.slice(0, 64);
+        }
+        track('page_view', props);
     }, [pathname]);
 
     return null;
