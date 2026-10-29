@@ -22,7 +22,8 @@ env:
 
 jobs:
   smoke:
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest is 26.04, which Playwright 1.60 can't install browsers on.
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - name: Wait for this commit to be live
