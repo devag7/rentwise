@@ -7,7 +7,7 @@ old Docker cron as a fallback.
 | Function | Called by | Auth | What it does |
 |---|---|---|---|
 | `sync-nobroker` | pg_cron 06:00 / 18:00 IST | service role | Apify `thirdwatch~nobroker-scraper` → `properties` |
-| `sync-magicbricks` | pg_cron, 3× per run | service role | Scrapes 6 of 30 areas per call (clock-based rotation, see file header) |
+| `sync-magicbricks` | pg_cron 06:15 IST | service role | Apify `thirdwatch~magicbricks-scraper` → `properties` (60 listings/run, 4 of 16 localities per day) |
 | `send-alerts` | pg_cron 09:00 IST | service role | One Resend email per watcher address with new matching listings |
 | `check-rent` | browser (`supabase.functions.invoke`) | none (`verify_jwt = false`) | "Is this rent fair?" verdict from `market_stats` |
 
@@ -32,13 +32,15 @@ Then in the Supabase SQL editor:
 2. Database → Extensions: enable `pg_cron` and `pg_net`.
 3. Fill in the project URL + service role key placeholders in
    `db/migrations/supabase_migration_phase16_schedules.sql` and run it.
+4. Run `db/migrations/supabase_migration_phase19_magicbricks_apify.sql`
+   (MagicBricks once a day via Apify).
 
 ## Manual runs
 
 ```bash
 curl -X POST https://<ref>.supabase.co/functions/v1/sync-magicbricks \
   -H "Authorization: Bearer $SERVICE_ROLE_KEY" -H "Content-Type: application/json" \
-  -d '{"batch": 0}'        # batch 0-4; omit body for the clock-based batch
+  -d '{"slot": 0}'         # slot 0-3 (4 localities each); omit body for today's slot
 ```
 
 The three pipeline functions reject any JWT whose role isn't `service_role`
