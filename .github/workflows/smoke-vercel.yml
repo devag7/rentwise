@@ -1,18 +1,44 @@
-name: Smoke test Vercel deployment
+name: Smoke test production
 
-# Vercel's GitHub integration reports each deployment as a GitHub
-# deployment_status event — run the read-only e2e suite against it.
+# Runs the read-only e2e suite against the live site:
+#  - after each push to main, once Vercel has the new commit live
+#    (/api/health reports the deployed commit)
+#  - once a day, to catch data or third-party breakage
+#  - on demand
+# (Vercel previews sit behind Vercel login, so only production is tested.)
 on:
-  deployment_status:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 4 * * *' # 09:47 IST
+  workflow_dispatch:
+
+concurrency:
+  group: smoke-production
+  cancel-in-progress: true
+
+env:
+  SITE_URL: https://rentwise.devshipit.com
 
 jobs:
   smoke:
-    if: github.event.deployment_status.state == 'success'
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
+      - name: Wait for this commit to be live
+        if: github.event_name == 'push'
+        run: |
+          for i in $(seq 1 60); do
+            live=$(curl -fsS "$SITE_URL/api/health" | jq -r '.commit // empty' || true)
+            if [ "$live" = "$GITHUB_SHA" ]; then echo "Live: $live"; exit 0; fi
+            if [ -z "$live" ] && [ "$i" -ge 6 ]; then
+              echo "::warning::/api/health reports no commit; waiting 3 minutes and testing anyway"
+              sleep 180; exit 0
+            fi
+            echo "Waiting for $GITHUB_SHA (live: ${live:-unknown})"; sleep 10
+          done
+          echo "::error::Deploy of $GITHUB_SHA not live after 10 minutes"; exit 1
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.deployment.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -21,7 +47,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: Run e2e smoke suite
         env:
-          PLAYWRIGHT_BASE_URL: ${{ github.event.deployment_status.environment_url || github.event.deployment_status.target_url }}
+          PLAYWRIGHT_BASE_URL: ${{ env.SITE_URL }}
         run: npm run test:e2e
       - uses: actions/upload-artifact@v4
         if: failure()
