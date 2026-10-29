@@ -35,6 +35,13 @@ Then in the Supabase SQL editor:
 4. Run `db/migrations/supabase_migration_phase19_magicbricks_apify.sql`
    (MagicBricks once a day via Apify).
 
+## Email
+
+Resend only sends (domain `devshipit.com`, sending records on `send.devshipit.com`;
+receiving is off in Resend). Alerts go out from `alerts@devshipit.com`. Mail *to*
+any `@devshipit.com` address is handled by Cloudflare Email Routing (root MX
+`route*.mx.cloudflare.net`) and forwarded to the owner's Gmail.
+
 ## Manual runs
 
 ```bash
