@@ -20,6 +20,8 @@ const RENTWISE_EMAIL = 'rentwise@devshipit.com';
 const MAX_EMAILS = 200;
 const MAX_LISTINGS_PER_EMAIL = 10;
 const RESEND_BATCH = 100; // Resend /emails/batch limit
+// Tags alert clicks in page_view analytics (and Vercel Analytics).
+const UTM = 'utm_source=alert&utm_medium=email';
 
 interface Watch {
     id: number;
@@ -124,7 +126,7 @@ Deno.serve(async (req) => {
                 : inr(l.rent);
             const title = [l.property_type, area].filter(Boolean).join(' · ');
             return `<tr><td style="padding:12px 0;border-bottom:1px solid #eee">
-<a href="${site}/properties/${l.property_id}" style="color:#111;font-weight:600;text-decoration:none">${esc(title || 'New listing')}</a><br>
+<a href="${site}/properties/${l.property_id}?${UTM}" style="color:#111;font-weight:600;text-decoration:none">${esc(title || 'New listing')}</a><br>
 <span style="color:#444;font-size:14px">${esc(l.address ?? '')}</span><br>
 <span style="font-size:15px">${price}</span></td></tr>`;
         }).join('\n');
@@ -144,7 +146,7 @@ Deno.serve(async (req) => {
 <h1 style="font-size:20px;margin:0 0 4px">${esc(subject)}</h1>
 <p style="color:#555;margin:0 0 16px;font-size:14px">New on RentWise since your last alert. Medians are from current active listings.</p>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0">${rows}</table>
-<p style="margin:20px 0 0"><a href="${site}/properties" style="color:#111">Browse all listings →</a></p>
+<p style="margin:20px 0 0"><a href="${site}/properties?${UTM}" style="color:#111">Browse all listings →</a></p>
 <p style="color:#888;font-size:12px;margin-top:32px;line-height:1.6">You're getting this because you watched these areas on RentWise.<br>Unsubscribe: ${unsubLinks}</p>
 </div></body></html>`;
 
