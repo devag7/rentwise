@@ -17,7 +17,6 @@ old Docker cron as a fallback.
 supabase login
 supabase link --project-ref <ref>
 supabase secrets set APIFY_API_TOKEN=... RESEND_API_KEY=... \
-  ALERT_FROM_EMAIL="RentWise <alerts@devshipit.com>" \
   SITE_URL=https://rentwise.devshipit.com
 # optional: LLM fallback for parsing free text in check-rent
 supabase secrets set ANTHROPIC_API_KEY=...
@@ -38,9 +37,11 @@ Then in the Supabase SQL editor:
 ## Email
 
 Resend only sends (domain `devshipit.com`, sending records on `send.devshipit.com`;
-receiving is off in Resend). Alerts go out from `alerts@devshipit.com`. Mail *to*
-any `@devshipit.com` address is handled by Cloudflare Email Routing (root MX
-`route*.mx.cloudflare.net`) and forwarded to the owner's Gmail.
+receiving is off in Resend). RentWise uses one address for everything:
+`rentwise@devshipit.com` sends the alerts (with Reply-To set to itself) and is
+the contact address on the site. Inbound mail to it is handled by Cloudflare
+Email Routing (root MX `route*.mx.cloudflare.net`) and forwarded to the owner's
+Gmail.
 
 ## Manual runs
 

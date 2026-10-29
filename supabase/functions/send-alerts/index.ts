@@ -3,7 +3,7 @@
  * send-alerts — daily "new listings in your area" emails for area_watches.
  * Invoked by pg_cron (phase 16) with the service role key.
  *
- * Secrets: RESEND_API_KEY (if missing → {skipped}), ALERT_FROM_EMAIL,
+ * Secrets: RESEND_API_KEY (if missing → {skipped}),
  *          SITE_URL (default https://rentwise.devshipit.com).
  *
  * For each active watch: active listings in its area (+ property_type, rent <= max_rent
@@ -14,6 +14,9 @@
 import { adminClient, requireServiceRole } from '../_shared/supabase.ts';
 import { json } from '../_shared/cors.ts';
 
+// RentWise sends from and receives at this one address only (inbound is
+// forwarded by Cloudflare Email Routing).
+const RENTWISE_EMAIL = 'rentwise@devshipit.com';
 const MAX_EMAILS = 200;
 const MAX_LISTINGS_PER_EMAIL = 10;
 const RESEND_BATCH = 100; // Resend /emails/batch limit
@@ -48,7 +51,7 @@ Deno.serve(async (req) => {
 
     const resendKey = Deno.env.get('RESEND_API_KEY');
     if (!resendKey) return json({ skipped: 'no RESEND_API_KEY' });
-    const from = Deno.env.get('ALERT_FROM_EMAIL') || 'RentWise <alerts@devshipit.com>';
+    const from = `RentWise <${RENTWISE_EMAIL}>`;
     const site = (Deno.env.get('SITE_URL') || 'https://rentwise.devshipit.com').replace(/\/+$/, '');
 
     const runStartedAt = new Date().toISOString();
@@ -152,6 +155,7 @@ Deno.serve(async (req) => {
             payload: {
                 from,
                 to: [first.email.trim()],
+                reply_to: RENTWISE_EMAIL,
                 subject,
                 html,
                 headers: {

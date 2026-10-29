@@ -94,7 +94,7 @@ export default function LoginLandlord() {
                                 className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#FF385C] transition-colors placeholder-gray-700 font-mono text-sm"
                                 required
                                 disabled={isLoading}
-                                placeholder="landlord@rentwise.com"
+                                placeholder="you@example.com"
                             />
                         </div>
                         <div className="relative">
