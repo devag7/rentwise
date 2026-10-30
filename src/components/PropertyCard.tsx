@@ -74,7 +74,8 @@ export default function PropertyCard({
 
     return (
         <article className="property-card card pressable group relative flex h-full flex-col overflow-hidden">
-            <Link href={href} className="relative block aspect-[4/3] w-full overflow-hidden bg-fill">
+            {/* The title link's overlay covers the whole card, photo included. */}
+            <div className="relative aspect-[4/3] w-full overflow-hidden bg-fill">
                 {image ? (
                     <img
                         src={image}
@@ -91,7 +92,7 @@ export default function PropertyCard({
                 <span className="material absolute left-3 top-3 rounded-full px-2.5 py-1 text-caption font-semibold text-label">
                     {property.property_type || 'Flat'}
                 </span>
-            </Link>
+            </div>
 
             <button
                 onClick={handleToggleSave}
