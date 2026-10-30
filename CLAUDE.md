@@ -27,7 +27,7 @@ E2E against local build: `PLAYWRIGHT_BASE_URL=http://localhost:3000 npm run test
 
 ## Deploy
 
-Vercel project `rentwise` (Git-connected) deploys every push; `main` → production at rentwise.devshipit.com (Cloudflare DNS CNAME → Vercel). Env vars live in Vercel. `.github/workflows/smoke-vercel.yml` runs the Playwright suite against production after each push to `main` (waits until `/api/health` reports the new commit), daily, and on demand. `deploy.yml` runs CI (lint/typecheck/build); its legacy droplet jobs only run if repo variable `DEPLOY_DROPLET=true`.
+Vercel project `rentwise` (Git-connected) deploys every push; `main` → production at rentwise.devshipit.com (Cloudflare DNS CNAME → Vercel). Env vars live in Vercel. `.github/workflows/smoke-vercel.yml` runs the Playwright suite against production after each push to `main` (waits until `/api/health` reports the new commit), daily, and on demand. `indexnow.yml` submits every sitemap URL to IndexNow (Bing etc.) on push to `main` and daily; its key file is `public/<key>.txt`. `deploy.yml` runs CI (lint/typecheck/build); its legacy droplet jobs only run if repo variable `DEPLOY_DROPLET=true`.
 
 ## Constraints
 
