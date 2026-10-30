@@ -22,7 +22,7 @@ function shortDate(iso: string): string {
 export default function RentTrendChart({
     points,
     label = 'Median asking rent',
-    color = '#00A699',
+    color = 'var(--accent)',
 }: {
     points: TrendPoint[];
     label?: string;
@@ -34,8 +34,8 @@ export default function RentTrendChart({
 
     if (data.length === 0) {
         return (
-            <div className="border border-white/10 bg-[#111] p-6 text-center" role="img" aria-label={`${label}: no history recorded yet`}>
-                <p className="text-sm text-gray-400">History starts today — check back.</p>
+            <div className="card p-6 text-center" role="img" aria-label={`${label}: no history recorded yet`}>
+                <p className="text-callout text-label-2">No history yet. Daily snapshots start today.</p>
             </div>
         );
     }
@@ -46,13 +46,13 @@ export default function RentTrendChart({
     if (data.length === 1) {
         return (
             <div
-                className="border border-white/10 bg-[#111] p-6"
+                className="card p-6"
                 role="img"
                 aria-label={`${label}: ${formatINR(first.value)} on ${shortDate(first.date)}. Only one snapshot so far.`}
             >
-                <p className="text-[10px] font-bold tracking-widest uppercase text-gray-400 mb-2">{shortDate(first.date)}</p>
-                <p className="text-2xl font-black text-white tracking-tight">{formatINR(first.value)}</p>
-                <p className="text-sm text-gray-400 mt-3">History starts today — check back.</p>
+                <p className="text-footnote text-label-2">{label} · {shortDate(first.date)}</p>
+                <p className="mt-1 text-title-2 num">{formatINR(first.value)}</p>
+                <p className="mt-3 text-callout text-label-2">Only one snapshot so far. The trend line appears after the next daily update.</p>
             </div>
         );
     }
@@ -85,28 +85,64 @@ export default function RentTrendChart({
         `to ${formatINR(last.value)} on ${shortDate(last.date)} ` +
         `(${change === 0 ? 'no change' : `${change > 0 ? '+' : ''}${pct}%`}), across ${data.length} daily snapshots.`;
 
+    const gridY = [0, 0.5, 1].map(f => PAD.top + f * innerH);
+
     return (
-        <figure className="border border-white/10 bg-[#111] p-4 sm:p-6">
-            <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
-                <figcaption className="text-[10px] font-bold tracking-widest uppercase text-gray-400">{label}</figcaption>
-                <span className={`text-xs font-bold tracking-widest ${change > 0 ? 'text-[#FF385C]' : change < 0 ? 'text-[#00A699]' : 'text-gray-400'}`}>
-                    {change === 0 ? 'FLAT' : `${change > 0 ? '+' : ''}${pct}%`}
+        <figure className="card p-5 sm:p-6">
+            <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+                <figcaption className="text-footnote text-label-2">{label}</figcaption>
+                <span className="chip num">
+                    {change === 0 ? 'No change' : `${change > 0 ? '+' : ''}${pct}%`}
                 </span>
             </div>
-            <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto block" role="img" aria-label={summary}>
-                <line x1={PAD.left} x2={W - PAD.right} y1={PAD.top} y2={PAD.top} stroke="rgba(255,255,255,0.08)" />
-                <line x1={PAD.left} x2={W - PAD.right} y1={PAD.top + innerH} y2={PAD.top + innerH} stroke="rgba(255,255,255,0.15)" />
-                <path d={area} fill={color} fillOpacity={0.12} />
-                <path d={line} fill="none" stroke={color} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
-                <circle cx={xy[xy.length - 1][0]} cy={xy[xy.length - 1][1]} r={4} fill={color} />
-                <text x={PAD.left} y={H - 8} fill="#9CA3AF" fontSize={12}>{shortDate(first.date)}</text>
-                <text x={W - PAD.right} y={H - 8} fill="#9CA3AF" fontSize={12} textAnchor="end">{shortDate(last.date)}</text>
+            <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full overflow-visible" role="img" aria-label={summary}>
+                {gridY.map((y, i) => (
+                    <line
+                        key={y}
+                        x1={PAD.left}
+                        x2={W - PAD.right}
+                        y1={y}
+                        y2={y}
+                        style={{ stroke: 'var(--separator)' }}
+                        strokeWidth={1}
+                        strokeDasharray={i === gridY.length - 1 ? undefined : '3 4'}
+                        vectorEffect="non-scaling-stroke"
+                    />
+                ))}
+                <path d={area} style={{ fill: color }} fillOpacity={0.1} />
+                <path
+                    d={line}
+                    fill="none"
+                    style={{ stroke: color }}
+                    strokeWidth={2.5}
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
+                    vectorEffect="non-scaling-stroke"
+                />
+                <circle
+                    cx={xy[xy.length - 1][0]}
+                    cy={xy[xy.length - 1][1]}
+                    r={5}
+                    style={{ fill: color, stroke: 'var(--surface-3)' }}
+                    strokeWidth={2.5}
+                />
+                <text x={PAD.left} y={H - 8} style={{ fill: 'var(--label-2)' }} fontSize={13}>{shortDate(first.date)}</text>
+                <text x={W - PAD.right} y={H - 8} style={{ fill: 'var(--label-2)' }} fontSize={13} textAnchor="end">{shortDate(last.date)}</text>
             </svg>
-            <div className="mt-3 flex justify-between gap-4 text-xs text-gray-400 font-mono">
-                <span>Low {formatINR(Math.min(...values))}</span>
-                <span>High {formatINR(Math.max(...values))}</span>
-                <span className="text-white">Now {formatINR(last.value)}</span>
-            </div>
+            <dl className="mt-4 grid grid-cols-3 gap-4 border-t border-separator pt-4 text-footnote">
+                <div>
+                    <dt className="text-label-2">Low</dt>
+                    <dd className="font-semibold num">{formatINR(Math.min(...values))}</dd>
+                </div>
+                <div className="text-center">
+                    <dt className="text-label-2">High</dt>
+                    <dd className="font-semibold num">{formatINR(Math.max(...values))}</dd>
+                </div>
+                <div className="text-right">
+                    <dt className="text-label-2">Now</dt>
+                    <dd className="font-semibold num">{formatINR(last.value)}</dd>
+                </div>
+            </dl>
         </figure>
     );
 }

@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import Link from 'next/link';
+import Container from '@/components/ui/Container';
 
 export default function Error({
     error,
@@ -15,35 +16,24 @@ export default function Error({
     }, [error]);
 
     return (
-        <main className="min-h-screen bg-black flex flex-col items-center justify-center px-6 text-center">
-            <p className="text-[10px] font-mono font-bold text-[#FF385C] uppercase tracking-widest mb-4">
-                System Fault
-            </p>
-            <h1 className="text-4xl lg:text-6xl font-black tracking-tighter text-white mb-6">
-                Something broke.
-            </h1>
-            <p className="text-gray-400 mb-10 max-w-md font-light">
-                An unexpected error occurred. You can retry, or head back to the listings.
-            </p>
-            <div className="flex gap-4">
-                <button
-                    onClick={reset}
-                    className="bg-white text-black px-8 py-3 text-[10px] font-bold uppercase tracking-widest hover:bg-gray-200 transition-colors"
-                >
-                    Retry
-                </button>
-                <Link
-                    href="/properties"
-                    className="border border-white/20 text-white px-8 py-3 text-[10px] font-bold uppercase tracking-widest hover:border-white transition-colors"
-                >
-                    Browse Properties
-                </Link>
-            </div>
-            {error.digest && (
-                <p className="mt-10 text-[10px] font-mono text-gray-600 uppercase tracking-widest">
-                    Ref: {error.digest}
+        <div className="flex min-h-[80vh] items-center pt-28 pb-24 sm:pt-32">
+            <Container narrow className="text-center">
+                <h1 className="text-title-1 text-balance">Something went wrong.</h1>
+                <p className="mx-auto mt-4 max-w-md text-lead text-label-2 text-balance">
+                    This page hit an unexpected error. Try again, or head back to the listings.
                 </p>
-            )}
-        </main>
+                <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row sm:gap-6">
+                    <button type="button" onClick={reset} className="btn btn-primary">
+                        Try again
+                    </button>
+                    <Link href="/properties" className="link link-chevron">Browse flats</Link>
+                </div>
+                {error.digest && (
+                    <p className="mt-10 text-footnote text-label-2">
+                        Reference: <span className="font-mono">{error.digest}</span>
+                    </p>
+                )}
+            </Container>
+        </div>
     );
 }

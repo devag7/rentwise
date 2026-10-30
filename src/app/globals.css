@@ -1,29 +1,420 @@
 @import "tailwindcss";
 
-body {
-  font-family: var(--font-inter), system-ui, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/*
+ * RentWise design system — see docs/DESIGN.md.
+ * Apple-inspired: system type, semantic colours that follow the OS
+ * light/dark setting, translucent chrome, short ease-out motion.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* Surfaces */
+  --surface: #ffffff;
+  --surface-2: #f5f5f7;          /* grouped / alternating sections */
+  --surface-3: #ffffff;          /* cards that sit on surface-2 */
+  --fill: rgba(120, 120, 128, 0.12);
+  --fill-strong: rgba(120, 120, 128, 0.2);
+  --separator: rgba(0, 0, 0, 0.1);
+
+  /* Content */
+  --label: #1d1d1f;              /* 16.8:1 on white */
+  --label-2: #6e6e73;            /* 5.1:1 on white */
+  --label-3: #86868b;            /* 3.6:1 — large or non-essential text only */
+
+  /* Action + signal (one colour, one meaning) */
+  --accent: #0071e3;             /* actions and links, 4.6:1 */
+  --accent-hover: #0077ed;
+  --on-accent: #ffffff;
+  --good: #1a7f37;               /* under market, 5.1:1 */
+  --bad: #d70015;                /* over market, 5.3:1 */
+  --warn: #b25000;
+
+  /* Material (translucent chrome) */
+  --material: rgba(255, 255, 255, 0.72);
+  --material-border: rgba(0, 0, 0, 0.08);
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.06);
+  --shadow-raised: 0 2px 6px rgba(0, 0, 0, 0.06), 0 16px 40px rgba(0, 0, 0, 0.1);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur-press: 160ms;
+  --dur-fast: 200ms;
+  --dur-base: 250ms;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: #000000;
+    --surface-2: #101012;
+    --surface-3: #1c1c1e;
+    --fill: rgba(120, 120, 128, 0.24);
+    --fill-strong: rgba(120, 120, 128, 0.36);
+    --separator: rgba(255, 255, 255, 0.14);
+
+    --label: #f5f5f7;
+    --label-2: #a1a1a6;          /* 8.0:1 on black */
+    --label-3: #6e6e73;
+
+    --accent: #2997ff;           /* 7.0:1 on black */
+    --accent-hover: #47a6ff;
+    --on-accent: #ffffff;
+    --good: #30d158;
+    --bad: #ff453a;
+    --warn: #ff9f0a;
+
+    --material: rgba(22, 22, 23, 0.72);
+    --material-border: rgba(255, 255, 255, 0.1);
+
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --shadow-raised: 0 16px 40px rgba(0, 0, 0, 0.6);
+  }
 }
 
 @theme inline {
-  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-fill: var(--fill);
+  --color-fill-strong: var(--fill-strong);
+  --color-separator: var(--separator);
+  --color-label: var(--label);
+  --color-label-2: var(--label-2);
+  --color-label-3: var(--label-3);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-on-accent: var(--on-accent);
+  --color-good: var(--good);
+  --color-bad: var(--bad);
+  --color-warn: var(--warn);
+
+  --radius-control: 12px;
+  --radius-card: 18px;
+  --radius-panel: 28px;
+
+  --shadow-card: var(--shadow-card);
+  --shadow-raised: var(--shadow-raised);
+
+  --ease-out: var(--ease-out);
+  --ease-in-out: var(--ease-in-out);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-padding-top: 64px;
+}
+
+body {
+  background: var(--surface);
+  color: var(--label);
+  font-family: var(--font-sans);
+  font-size: 1.0625rem;          /* 17px, Apple body */
+  line-height: 1.47;
+  letter-spacing: -0.022em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-optical-sizing: auto;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ---------- Type scale (size, leading and tracking move together) ---------- */
+@utility text-display {
+  font-size: clamp(2.5rem, 1.6rem + 4.2vw, 5rem);
+  line-height: 1.05;
+  letter-spacing: -0.028em;
+  font-weight: 700;
+}
+@utility text-title-1 {
+  font-size: clamp(2rem, 1.5rem + 2.2vw, 3rem);
+  line-height: 1.08;
+  letter-spacing: -0.024em;
+  font-weight: 700;
+}
+@utility text-title-2 {
+  font-size: clamp(1.5rem, 1.25rem + 1vw, 2rem);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+@utility text-title-3 {
+  font-size: 1.3125rem;        /* 21px */
+  line-height: 1.24;
+  letter-spacing: -0.018em;
+  font-weight: 600;
+}
+@utility text-headline {
+  font-size: 1.0625rem;
+  line-height: 1.35;
+  letter-spacing: -0.022em;
+  font-weight: 600;
+}
+@utility text-lead {
+  font-size: clamp(1.1875rem, 1.05rem + 0.5vw, 1.5rem);
+  line-height: 1.4;
+  letter-spacing: -0.018em;
+  font-weight: 400;
+}
+@utility text-callout {
+  font-size: 0.9375rem;        /* 15px */
+  line-height: 1.4;
+  letter-spacing: -0.012em;
+}
+@utility text-footnote {
+  font-size: 0.8125rem;        /* 13px */
+  line-height: 1.38;
+  letter-spacing: -0.006em;
+}
+@utility text-caption {
+  font-size: 0.75rem;          /* 12px */
+  line-height: 1.33;
+  letter-spacing: 0;
+}
+@utility text-eyebrow {
+  font-size: 0.8125rem;
+  line-height: 1.2;
+  letter-spacing: 0;
+  font-weight: 600;
+  color: var(--label-2);
+}
+@utility num {
+  font-variant-numeric: tabular-nums;
+}
+
+@utility material {
+  background: var(--material);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+}
+
+@layer components {
+
+  /* ---------- Controls ---------- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    min-height: 44px;
+    padding: 0 1.375rem;
+    border-radius: 980px;
+    font-size: 1.0625rem;
+    font-weight: 500;
+    letter-spacing: -0.022em;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      transform var(--dur-press) var(--ease-out),
+      background-color var(--dur-fast) ease,
+      color var(--dur-fast) ease,
+      opacity var(--dur-fast) ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+  .btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+  .btn-secondary {
+    background: var(--fill);
+    color: var(--label);
+  }
+  .btn-sm {
+    min-height: 36px;
+    padding: 0 0.875rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+  .btn-lg {
+    min-height: 52px;
+    padding: 0 1.75rem;
+    font-size: 1.0625rem;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+    .btn-secondary:hover:not(:disabled) { background: var(--fill-strong); }
+  }
+
+  /* Apple-style text link with a chevron: "Check a rent ›" */
+  .link {
+    color: var(--accent);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+  .link-chevron::after {
+    content: "";
+    display: inline-block;
+    width: 0.45em;
+    height: 0.45em;
+    border-top: 1.5px solid currentColor;
+    border-right: 1.5px solid currentColor;
+    transform: rotate(45deg);
+    margin-left: 0.15em;
+    transition: transform var(--dur-fast) var(--ease-out);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .link:hover { text-decoration: underline; text-underline-offset: 0.18em; }
+    .link-chevron:hover::after { transform: translateX(2px) rotate(45deg); }
+  }
+
+  .field {
+    width: 100%;
+    min-height: 44px;
+    padding: 0.625rem 0.875rem;
+    border-radius: var(--radius-control);
+    background: var(--surface-3);
+    border: 1px solid var(--separator);
+    color: var(--label);
+    font-size: 1.0625rem;
+    letter-spacing: -0.022em;
+    transition: border-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
+  }
+  .field::placeholder { color: var(--label-3); }
+  .field:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+  .field-label {
+    display: block;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--label-2);
+    margin-bottom: 0.375rem;
+  }
+
+  .card {
+    background: var(--surface-3);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Pressable surfaces (cards, list rows): feedback on press, lift on hover */
+  .pressable {
+    transition:
+      transform var(--dur-press) var(--ease-out),
+      box-shadow var(--dur-base) var(--ease-out);
+  }
+  .pressable:active {
+    transform: scale(0.985);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .pressable:hover {
+      box-shadow: var(--shadow-raised);
+    }
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.1875rem 0.625rem;
+    border-radius: 980px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: 0;
+    background: var(--fill);
+    color: var(--label);
+  }
 }
 
 @layer utilities {
-  .glass {
-    @apply bg-white/70 backdrop-blur-xl border border-white/50 shadow-[0_8px_30px_#0000000a];
-  }
-
-  .glass-dark {
-    @apply bg-[#0A0A0A]/80 backdrop-blur-2xl border-b border-white/5 shadow-2xl;
-  }
-
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Scroll reveal: marketing sections only, plays once (see Reveal.tsx). */
+  /* Hidden start only when JS can reveal it; no-JS readers see content. */
+  @media (scripting: enabled) {
+    .reveal {
+      opacity: 0;
+      transform: translateY(16px);
+      transition:
+        opacity 700ms var(--ease-out),
+        transform 700ms var(--ease-out);
+      transition-delay: var(--reveal-delay, 0ms);
+    }
+    .reveal[data-visible="true"] {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* Entrance for small surfaces (menus, toasts) without JS */
+  .pop-in {
+    transition:
+      opacity var(--dur-fast) var(--ease-out),
+      transform var(--dur-fast) var(--ease-out);
+    @starting-style {
+      opacity: 0;
+      transform: translateY(-4px) scale(0.98);
+    }
+  }
+}
+
+/* ---------- Accessibility preferences ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+  .reveal {
+    transform: none;
+    transition: opacity 200ms ease;
+  }
+  .btn:active:not(:disabled),
+  .pressable:active {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .material {
+    background: var(--surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --separator: rgba(0, 0, 0, 0.35);
+    --label-2: #3a3a3c;
+    --material: var(--surface);
+  }
+  .card { border: 1px solid var(--separator); }
+}
+@media (prefers-contrast: more) and (prefers-color-scheme: dark) {
+  :root {
+    --separator: rgba(255, 255, 255, 0.4);
+    --label-2: #d1d1d6;
   }
 }

@@ -1,13 +1,28 @@
 'use client'
 
 import { useState } from 'react';
+import Link from 'next/link';
 import toast from 'react-hot-toast';
+import { createClient } from '@/utils/supabase/client';
+import { useAppContext } from '@/components/providers/AppContext';
 
 interface Props {
     propertyId: number;
+    /** Owner of an owner-listed flat; they get the request as a message. */
+    landlordId?: string | null;
+    address?: string;
 }
 
-export default function TourScheduler({ propertyId }: Props) {
+/** "09:00 AM" → "09:00" (24h) */
+function to24h(slot: string): string {
+    const [, h, m, ap] = slot.match(/^(\d{2}):(\d{2}) (AM|PM)$/) ?? [];
+    let hour = Number(h) % 12;
+    if (ap === 'PM') hour += 12;
+    return `${String(hour).padStart(2, '0')}:${m}`;
+}
+
+export default function TourScheduler({ propertyId, landlordId, address }: Props) {
+    const { user, role } = useAppContext();
     const [selectedDate, setSelectedDate] = useState('');
     const [selectedTime, setSelectedTime] = useState('');
     const [isScheduling, setIsScheduling] = useState(false);
@@ -15,93 +30,118 @@ export default function TourScheduler({ propertyId }: Props) {
 
     const timeSlots = ["09:00 AM", "11:30 AM", "02:00 PM", "04:30 PM", "06:00 PM"];
 
-    const handleSchedule = (e: React.FormEvent) => {
+    const handleSchedule = async (e: React.FormEvent) => {
         e.preventDefault();
 
         if (!selectedDate || !selectedTime) {
-            toast.error("Select a complete temporal coordinate to schedule.");
+            toast.error("Pick a date and a time for the visit.");
+            return;
+        }
+
+        if (!user || role !== 'tenant') {
+            toast.error('Sign in as a tenant to request a visit.');
             return;
         }
 
         setIsScheduling(true);
-        const processingToast = toast.loading('Syncing calendar matrix...');
-
-        // Mock scheduling delay
-        setTimeout(() => {
-            toast.success('Tour Scheduled Successfully.', { id: processingToast });
+        const supabase = createClient();
+        // Slots are Bangalore time.
+        const requested = `${selectedDate}T${to24h(selectedTime)}:00+05:30`;
+        const { error } = await supabase.from('tours').insert({
+            property_id: propertyId,
+            tenant_id: user.id,
+            requested_date: requested,
+            notes: `Requested slot: ${selectedTime}`,
+        });
+        if (error) {
             setIsScheduling(false);
-            setIsScheduled(true);
-        }, 1500);
+            toast.error('Could not send the request. Please try again.');
+            return;
+        }
+        // Owners see requests in Messages; a failed message doesn't undo the request.
+        if (landlordId && landlordId !== user.id) {
+            const when = new Date(requested).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' });
+            await supabase.from('messages').insert({
+                sender_id: user.id,
+                receiver_id: landlordId,
+                property_id: propertyId,
+                content: `Visit request${address ? ` for ${address}` : ''}: ${when}. Does that work for you?`,
+            });
+        }
+        setIsScheduling(false);
+        setIsScheduled(true);
+        toast.success('Visit requested.');
     };
 
     if (isScheduled) {
         return (
-            <div className="mb-10 bg-[#00A699]/10 border border-[#00A699]/30 p-6 flex flex-col items-center justify-center text-center">
-                <div className="w-12 h-12 rounded-full bg-[#00A699]/20 flex items-center justify-center mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-[#00A699]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+            <section className="card pop-in flex flex-col items-center p-6 text-center" aria-live="polite">
+                <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-good/12 text-good">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                 </div>
-                <h4 className="text-white font-bold tracking-widest uppercase mb-1">Tour Confirmed</h4>
-                <p className="text-[10px] text-gray-400 font-mono tracking-widest uppercase mb-4">
-                    REF RW-{propertyId} &middot; {new Date(selectedDate).toLocaleDateString()} at {selectedTime}
+                <h2 className="text-headline">Visit requested</h2>
+                <p className="mt-1 text-callout text-label-2 num">
+                    {new Date(selectedDate).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })} at {selectedTime}
                 </p>
+                <p className="mt-1 text-footnote text-label-2">The owner will confirm in <Link href="/messages" className="link">Messages</Link>.</p>
                 <button
                     onClick={() => {
                         setSelectedDate('');
                         setSelectedTime('');
                         setIsScheduled(false);
                     }}
-                    className="text-[#00A699] hover:text-white transition-colors text-[10px] uppercase font-bold tracking-widest"
+                    className="link mt-3 text-callout"
                 >
-                    Reschedule
+                    Request another time
                 </button>
-            </div>
+            </section>
         );
     }
 
     return (
-        <div className="mb-10 bg-[#0A0A0A] border border-white/5 p-6 relative overflow-hidden">
-            <h4 className="text-[10px] font-bold text-white uppercase tracking-widest mb-4 flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                Book Guided Property Tour
-            </h4>
+        <section className="card p-6" aria-labelledby={`tour-heading-${propertyId}`}>
+            <h2 id={`tour-heading-${propertyId}`} className="text-headline">Visit this flat</h2>
 
-            <form onSubmit={handleSchedule} className="space-y-6">
+            <form onSubmit={handleSchedule} className="mt-4 space-y-5">
                 <div>
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Select Date</label>
+                    <label htmlFor={`tour-date-${propertyId}`} className="field-label">Date</label>
                     <input
+                        id={`tour-date-${propertyId}`}
                         type="date"
                         min={new Date().toISOString().split('T')[0]} // Cannot schedule in the past
                         value={selectedDate}
                         onChange={(e) => setSelectedDate(e.target.value)}
-                        className="w-full px-4 py-3 bg-[#111] border border-white/20 text-white focus:outline-none focus:border-[#00A699] font-mono text-sm tracking-widest transition-colors"
+                        className="field num"
                         required
                     />
                 </div>
 
-                <div>
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Select Time Window</label>
-                    <div className="grid grid-cols-2 gap-2">
+                <fieldset>
+                    <legend className="field-label">Time</legend>
+                    <div className="grid grid-cols-3 gap-2">
                         {timeSlots.map(time => (
                             <button
                                 key={time}
                                 type="button"
                                 onClick={() => setSelectedTime(time)}
-                                className={`py-2 text-[10px] font-bold font-mono tracking-widest transition-colors ${selectedTime === time ? 'bg-[#00A699] text-white border border-[#00A699] shadow-[0_0_15px_rgba(0,166,153,0.3)]' : 'bg-[#111] text-gray-500 border border-white/10 hover:border-[#00A699]/50 hover:text-white'}`}
+                                aria-pressed={selectedTime === time}
+                                className={`min-h-[36px] rounded-full px-2 text-footnote num transition-colors duration-200 ${selectedTime === time ? 'bg-accent font-semibold text-on-accent' : 'bg-fill text-label hover:bg-fill-strong'}`}
                             >
-                                {time}
+                                {time.replace(/^0/, '')}
                             </button>
                         ))}
                     </div>
-                </div>
+                </fieldset>
 
-                <button
-                    type="submit"
-                    disabled={isScheduling}
-                    className="w-full py-4 bg-white text-black font-bold uppercase tracking-widest transition-all duration-300 hover:bg-[#00A699] hover:text-white disabled:opacity-50 mt-4"
-                >
-                    {isScheduling ? 'Booking Protocol Syncing...' : 'Confirm Synchronization'}
+                <button type="submit" disabled={isScheduling} className="btn btn-secondary w-full">
+                    {isScheduling ? 'Sending…' : 'Request a visit'}
                 </button>
+                {(!user || role !== 'tenant') && (
+                    <p className="text-center text-footnote text-label-2">
+                        <Link href="/login/tenant" className="link">Sign in as a tenant</Link> to request a visit.
+                    </p>
+                )}
             </form>
-        </div>
+        </section>
     );
 }

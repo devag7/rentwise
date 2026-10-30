@@ -34,7 +34,7 @@ export default function LoginTenant() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        const loadingToast = toast.loading('Authenticating...');
+        const loadingToast = toast.loading('Signing in…');
 
         try {
             const { error } = await supabase.auth.signInWithPassword({
@@ -47,7 +47,7 @@ export default function LoginTenant() {
                     throw new Error('Too many login attempts. Please wait a few minutes.');
                 }
                 if (error.message === 'Invalid login credentials') {
-                    throw new Error('Incorrect email or password. Please check your credentials.');
+                    throw new Error('Incorrect email or password.');
                 }
                 throw error;
             }
@@ -59,7 +59,7 @@ export default function LoginTenant() {
             router.push('/properties');
 
         } catch (err: unknown) {
-            const msg = (err as Error).message || 'Authentication failed';
+            const msg = (err as Error).message || 'Could not sign in. Try again.';
             toast.error(msg, { id: loadingToast });
         } finally {
             setIsLoading(false);
@@ -67,70 +67,57 @@ export default function LoginTenant() {
     };
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-[#0A0A0A] text-white pt-20 selection:bg-[#00A699] selection:text-white relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-[#00A699]/5 blur-[120px] pointer-events-none rounded-full" />
-            
-            <div className="w-full max-w-sm bg-[#111] rounded-none p-10 border border-white/10 relative z-10 shadow-2xl">
-                <div className="mb-6 flex justify-start">
-                    <Link href="/login" className="text-gray-500 hover:text-white text-[10px] tracking-widest uppercase font-bold flex items-center transition-colors">
-                        ← Back to Selector
-                    </Link>
-                </div>
+        <div className="min-h-dvh bg-surface-2 pb-20 pt-28 sm:pt-32">
+            <div className="mx-auto w-full max-w-sm px-5">
+                <Link href="/login" className="link text-callout">‹ All accounts</Link>
 
-                <h2 className="text-sm font-bold tracking-widest text-[#00A699] uppercase mb-8 flex items-center gap-3">
-                    <span className="w-2 h-2 bg-[#00A699] rounded-full animate-pulse"></span>
-                    Tenant Access
-                </h2>
+                <div className="card mt-4 p-7 sm:p-8">
+                    <h1 className="text-title-2">Sign in as a tenant</h1>
+                    <p className="mt-2 text-callout text-label-2">See your saved flats, alerts and applications.</p>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="space-y-5">
-                        
-                        <div className="relative">
-                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Email Address</label>
+                    <form onSubmit={handleSubmit} className="mt-7 space-y-5">
+                        <div>
+                            <label htmlFor="email" className="field-label">Email</label>
                             <input
+                                id="email"
                                 type="email"
+                                autoComplete="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors placeholder-gray-700 font-mono text-sm"
+                                className="field"
                                 required
                                 disabled={isLoading}
                                 placeholder="you@example.com"
                             />
                         </div>
-                        <div className="relative">
-                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Security Key</label>
+                        <div>
+                            <label htmlFor="password" className="field-label">Password</label>
                             <input
+                                id="password"
                                 type="password"
+                                autoComplete="current-password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors placeholder-gray-700 font-mono text-sm"
+                                className="field"
                                 required
                                 disabled={isLoading}
-                                placeholder="••••••••"
-                                
                             />
                         </div>
-                    </div>
 
-                    <button
-                        type="submit"
-                        className="w-full py-4 bg-white text-black font-bold text-xs uppercase tracking-widest transition-all duration-300 hover:bg-[#00A699] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed mt-4"
-                        disabled={isLoading}
-                    >
-                        {isLoading ? (
-                            <span className="animate-pulse">Authenticating...</span>
-                        ) : (
-                            "Initialize Session"
-                        )}
-                    </button>
-                </form>
+                        <button type="submit" className="btn btn-primary btn-lg w-full" disabled={isLoading}>
+                            {isLoading ? 'Signing in…' : 'Sign in'}
+                        </button>
+                    </form>
+                </div>
 
-                <div className="mt-8 pt-6 border-t border-white/10">
-                    <p className="text-left text-gray-500 text-[10px] uppercase font-bold tracking-widest">
-                        Unregistered Agent?
-                        <Link href="/register/tenant" className="text-white hover:text-[#00A699] ml-2 transition-colors">
-                            Request Credentials
-                        </Link>
+                <div className="mt-6 space-y-2 text-center text-callout text-label-2">
+                    <p>
+                        New to RentWise?{' '}
+                        <Link href="/register/tenant" className="link">Create an account</Link>
+                    </p>
+                    <p>
+                        Own a flat?{' '}
+                        <Link href="/login/landlord" className="link">Sign in as a landlord</Link>
                     </p>
                 </div>
             </div>

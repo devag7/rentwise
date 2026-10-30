@@ -1,15 +1,18 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
 import './globals.css';
 import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
 import { Toaster } from 'react-hot-toast';
 import { Analytics } from '@vercel/analytics/next';
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://rentwise.devshipit.com';
 
-// Self-hosted at build time — no render-blocking request to Google Fonts.
-const inter = Inter({ subsets: ['latin'], display: 'swap', variable: '--font-inter' });
-
-export const viewport: Viewport = { themeColor: '#0A0A0A' };
+// System font stack (SF on Apple devices): no font download at all.
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#000000' },
+  ],
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
@@ -71,8 +74,9 @@ export default function RootLayout({
   };
 
   return (
-    <html lang="en-IN" className={inter.variable}>
-      <body className="antialiased bg-[#0A0A0A]">
+    <html lang="en-IN">
+      <body>
+        <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-3 focus:z-[60] btn btn-secondary btn-sm">Skip to content</a>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}
@@ -80,36 +84,27 @@ export default function RootLayout({
         <AppProvider>
           <AnalyticsTracker />
           <Navbar />
-          {children}
-
-        <Toaster
-          position="bottom-center"
-          toastOptions={{
-            style: {
-              background: '#111',
-              color: '#fff',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '0px',
-              fontFamily: 'inherit',
-              fontSize: '12px',
-              letterSpacing: '0.1em',
-              textTransform: 'uppercase',
-              fontWeight: 700
-            },
-            success: {
-              iconTheme: {
-                primary: '#00A699',
-                secondary: '#111',
+          <main id="main" className="min-h-[70vh]">{children}</main>
+          <Footer />
+          <Toaster
+            position="bottom-center"
+            toastOptions={{
+              className: 'material',
+              style: {
+                background: 'var(--material)',
+                color: 'var(--label)',
+                border: '1px solid var(--material-border)',
+                borderRadius: '14px',
+                boxShadow: 'var(--shadow-raised)',
+                fontFamily: 'inherit',
+                fontSize: '15px',
+                letterSpacing: '-0.012em',
+                padding: '10px 14px',
               },
-            },
-            error: {
-              iconTheme: {
-                primary: '#FF385C',
-                secondary: '#111',
-              },
-            },
-          }}
-        />
+              success: { iconTheme: { primary: 'var(--good)', secondary: 'var(--surface)' } },
+              error: { iconTheme: { primary: 'var(--bad)', secondary: 'var(--surface)' } },
+            }}
+          />
         </AppProvider>
         <Analytics />
       </body>

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createPublicClient } from '@/utils/supabase/public';
+import Container from '@/components/ui/Container';
 
 export const metadata = { title: 'Unsubscribe', robots: { index: false } };
 export const dynamic = 'force-dynamic';
@@ -22,29 +23,32 @@ export default async function Unsubscribe({ searchParams }: { searchParams: Prom
     const valid = !!token && TOKEN_RE.test(token);
 
     return (
-        <div className="min-h-screen bg-[#0A0A0A] text-white pt-40 px-4 sm:px-6">
-            <div className="max-w-xl mx-auto text-center">
+        <div className="pt-32 pb-24 sm:pt-40 sm:pb-32">
+            <Container narrow className="text-center">
                 {status === 'done' ? (
                     <>
-                        <h1 className="text-4xl font-black tracking-tighter mb-4">Unsubscribed.</h1>
-                        <p className="text-gray-300 mb-10">You won&apos;t get alerts for that area any more.</p>
+                        <h1 className="text-title-1 text-balance">You’re unsubscribed.</h1>
+                        <p className="mt-4 text-lead text-label-2">You won&apos;t get alerts for that area any more.</p>
                     </>
                 ) : valid ? (
                     <>
-                        <h1 className="text-4xl font-black tracking-tighter mb-4">Stop these alerts?</h1>
-                        <form action={unsubscribe} className="mb-10">
+                        <h1 className="text-title-1 text-balance">Stop these alerts?</h1>
+                        <p className="mt-4 text-lead text-label-2">You won&apos;t get emails about new flats in this area any more.</p>
+                        <form action={unsubscribe} className="mt-8">
                             <input type="hidden" name="token" value={token} />
-                            <button className="px-8 py-4 bg-[#FF385C] text-white text-xs font-bold uppercase tracking-widest">Unsubscribe</button>
+                            <button className="btn btn-primary btn-lg">Unsubscribe</button>
                         </form>
                     </>
                 ) : (
                     <>
-                        <h1 className="text-4xl font-black tracking-tighter mb-4">Link not valid</h1>
-                        <p className="text-gray-300 mb-10">This unsubscribe link is invalid or was already used.</p>
+                        <h1 className="text-title-1 text-balance">This link doesn’t work</h1>
+                        <p className="mt-4 text-lead text-label-2">The unsubscribe link is invalid or was already used.</p>
                     </>
                 )}
-                <Link href="/properties" className="px-8 py-4 border border-white/20 text-xs font-bold uppercase tracking-widest hover:border-white">Browse flats</Link>
-            </div>
+                <div className="mt-10">
+                    <Link href="/properties" className="link link-chevron">Browse flats</Link>
+                </div>
+            </Container>
         </div>
     );
 }

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { generateLeaseDocument } from '@/utils/generateLease';
+import { formatINR } from '@/utils/market';
 
 interface Application {
     application_id: number;
@@ -45,72 +46,66 @@ export default function TenantApplications({ tenant_id }: { tenant_id: string })
     }, [supabase, tenant_id]);
 
     if (isLoading) {
-        return <div className="animate-pulse h-24 bg-[#111] border border-white/10 w-full mb-12"></div>;
+        return <div className="card h-24 animate-pulse" aria-busy="true" aria-label="Loading applications" />;
     }
 
     if (applications.length === 0) {
         return null;
     }
 
+    const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+
     return (
-        <div className="w-full mx-auto bg-[#111] border border-white/10 rounded-none p-6">
-            <h3 className="text-sm font-bold text-[#FF385C] uppercase tracking-widest mb-6 flex items-center gap-3">
-                <span className="w-2 h-2 bg-[#FF385C] rounded-full animate-pulse"></span>
-                My Submitted Applications
-            </h3>
+        <section aria-labelledby="applications-heading">
+            <h2 id="applications-heading" className="text-title-3">
+                Applications <span className="ml-1 font-normal text-label-2 num">{applications.length}</span>
+            </h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <ul className="card mt-5 divide-y divide-separator overflow-hidden">
                 {applications.map((app) => (
-                    <div key={app.application_id} className="border border-white/10 bg-[#050505] p-5 flex flex-col justify-between">
-
-                        <div>
-                            <div className="flex items-center gap-3 mb-3">
-                                <span className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white ${app.status === 'pending' ? 'bg-yellow-600' :
-                                    app.status === 'approved' ? 'bg-[#00A699]' : 'bg-[#FF385C]'
-                                    }`}>
-                                    {app.status}
-                                </span>
-                                <span className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">
-                                    {new Date(app.created_at).toLocaleDateString()}
-                                </span>
+                    <li key={app.application_id} className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                        <div className="min-w-0 flex-1">
+                            <div className="flex items-baseline justify-between gap-4">
+                                <h3 className="truncate text-headline">{app.properties?.address}</h3>
+                                {app.properties?.rent ? (
+                                    <p className="shrink-0 text-headline num">
+                                        {formatINR(app.properties.rent)}<span className="text-footnote font-normal text-label-2">/mo</span>
+                                    </p>
+                                ) : null}
                             </div>
-
-                            <h4 className="text-white font-bold text-sm leading-tight mb-1 truncate">
-                                {app.properties?.address}
-                            </h4>
-
-                            <p className="text-[#00A699] font-black text-lg mb-4 tracking-tighter">
-                                ₹{app.properties?.rent?.toLocaleString('en-IN') || '---'}
-                            </p>
-                        </div>
-
-                        <div className="flex justify-between items-end border-t border-white/5 pt-3 mt-auto text-[10px] font-mono text-gray-500 uppercase tracking-widest">
-                            <span>Req. Move In:</span>
-                            <span className="font-bold text-white">{new Date(app.move_in_date).toLocaleDateString()}</span>
+                            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-footnote text-label-2">
+                                <StatusChip status={app.status} />
+                                <span className="num">Applied {fmtDate(app.created_at)}</span>
+                                <span className="num">Moving in {fmtDate(app.move_in_date)}</span>
+                            </div>
                         </div>
 
                         {app.status === 'approved' && app.properties && (
-                            <div className="mt-4 pt-4 border-t border-white/10 flex flex-col gap-2">
-                                <button
-                                    onClick={() => generateLeaseDocument({
-                                        propertyAddress: app.properties!.address,
-                                        rent: app.properties!.rent,
-                                        tenantId: tenant_id,
-                                        landlordId: app.properties!.landlord_id,
-                                        moveInDate: app.move_in_date
-                                    })}
-                                    className="w-full px-4 py-3 bg-[#00A699]/10 text-[#00A699] border border-[#00A699]/30 hover:bg-[#00A699] hover:text-white transition-colors text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                                    Download draft agreement
-                                </button>
-
-                            </div>
+                            <button
+                                type="button"
+                                onClick={() => generateLeaseDocument({
+                                    propertyAddress: app.properties!.address,
+                                    rent: app.properties!.rent,
+                                    tenantId: tenant_id,
+                                    landlordId: app.properties!.landlord_id,
+                                    moveInDate: app.move_in_date
+                                })}
+                                className="btn btn-secondary btn-sm shrink-0 self-start sm:self-auto"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden><path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                Download draft agreement
+                            </button>
                         )}
-                    </div>
+                    </li>
                 ))}
-            </div>
-
-        </div>
+            </ul>
+        </section>
     );
+}
+
+function StatusChip({ status }: { status: string }) {
+    if (status === 'approved') return <span className="chip bg-good/12 text-good">Approved</span>;
+    if (status === 'rejected') return <span className="chip bg-bad/12 text-bad">Declined</span>;
+    if (status === 'pending') return <span className="chip bg-warn/12 text-warn">Pending</span>;
+    return <span className="chip">{status}</span>;
 }

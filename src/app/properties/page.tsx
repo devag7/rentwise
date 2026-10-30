@@ -2,6 +2,7 @@ import Link from 'next/link';
 import FilterBar from '@/components/FilterBar';
 import PropertiesList from './PropertiesList';
 import WatchArea from '@/components/WatchArea';
+import Container from '@/components/ui/Container';
 import { createPublicClient } from '@/utils/supabase/public';
 import { getMarketStats, marketKey, getVerdict, getActiveListingCount } from '@/utils/market';
 import { getHiddenPropertyIds } from '@/utils/reports';
@@ -94,46 +95,46 @@ export default async function Properties({ searchParams }: { searchParams: Promi
     nextParams.set('page', String(page + 1));
 
     return (
-        <div className="w-full pt-28 pb-24 px-4 sm:px-6 bg-[#0A0A0A] text-white min-h-screen selection:bg-[#FF385C] selection:text-white">
-            <div className="max-w-7xl mx-auto">
-                <div className="mb-8">
-                    <p className="text-sm font-bold tracking-widest text-[#FF385C] uppercase mb-4">Live inventory</p>
-                    <h1 className="text-4xl sm:text-5xl font-black tracking-tighter text-white">Flats for rent in Bangalore, priced against real comps.</h1>
-                </div>
+        <div className="pt-28 pb-24 sm:pt-32">
+            <Container>
+                <header className="max-w-3xl">
+                    <h1 className="text-title-1 text-balance">Flats for rent in Bangalore</h1>
+                    <p className="mt-3 text-lead text-label-2 text-balance">
+                        Every rent is compared with real flats of the same size in the same area.
+                    </p>
+                </header>
 
-                <div className="grid grid-cols-3 gap-px bg-white/10 border border-white/10 mb-10">
-                    <div className="bg-[#0A0A0A] p-4 sm:p-5">
-                        <p className="text-2xl sm:text-3xl font-black text-white tracking-tighter">{totalActive.toLocaleString('en-IN')}</p>
-                        <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mt-1">Active listings</p>
+                <dl className="card mt-8 grid grid-cols-3 divide-x divide-separator">
+                    <div className="min-w-0 px-4 py-4 sm:px-6 sm:py-5">
+                        <dt className="text-footnote text-label-2">Live listings</dt>
+                        <dd className="mt-1 text-title-2 num">{totalActive.toLocaleString('en-IN')}</dd>
                     </div>
-                    <div className="bg-[#0A0A0A] p-4 sm:p-5">
-                        <p className="text-2xl sm:text-3xl font-black text-[#00A699] tracking-tighter">{underMarketNow}</p>
-                        <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mt-1">Under market here</p>
+                    <div className="min-w-0 px-4 py-4 sm:px-6 sm:py-5">
+                        <dt className="text-footnote text-label-2">Under market in these results</dt>
+                        <dd className="mt-1 text-title-2 text-good num">{underMarketNow.toLocaleString('en-IN')}</dd>
                     </div>
-                    <div className="bg-[#0A0A0A] p-4 sm:p-5">
-                        <p className="text-2xl sm:text-3xl font-black text-white tracking-tighter">{Object.keys(marketStats).length}</p>
-                        <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mt-1">Markets tracked</p>
+                    <div className="min-w-0 px-4 py-4 sm:px-6 sm:py-5">
+                        <dt className="text-footnote text-label-2">Markets with enough data</dt>
+                        <dd className="mt-1 text-title-2 num">{Object.keys(marketStats).length.toLocaleString('en-IN')}</dd>
                     </div>
-                </div>
+                </dl>
 
-                <FilterBar areas={areas} />
+                <div className="mt-8">
+                    <FilterBar areas={areas} />
+                </div>
 
                 <PropertiesList properties={shown} total={listings.length} marketStats={marketStats} />
 
                 {hasMore && (
                     <div className="mt-12 flex justify-center">
-                        <Link
-                            href={`/properties?${nextParams.toString()}`}
-                            scroll={false}
-                            className="px-8 py-4 border border-white/20 text-white text-xs font-bold tracking-widest uppercase hover:border-white transition-colors"
-                        >
+                        <Link href={`/properties?${nextParams.toString()}`} scroll={false} className="btn btn-secondary">
                             Show more flats
                         </Link>
                     </div>
                 )}
 
                 <WatchArea areas={areas} />
-            </div>
+            </Container>
         </div>
     );
 }

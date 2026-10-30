@@ -1,100 +1,160 @@
 import Link from 'next/link';
 import { createPublicClient } from '@/utils/supabase/public';
-import { getMarketStats, getActiveListingCount } from '@/utils/market';
+import { getMarketStats, getActiveListingCount, marketKey, areaSlug, formatINR, MIN_COMPS } from '@/utils/market';
+import { getAreas } from '@/utils/listings';
+import Container from '@/components/ui/Container';
+import Reveal from '@/components/ui/Reveal';
+import MarketBar from '@/components/ui/MarketBar';
 
 export const revalidate = 1800;
 
+const PRINCIPLES = [
+  {
+    title: 'Real comparables',
+    body: 'Each flat is compared with live listings of the same size in the same area. With fewer than three, we say so instead of guessing.',
+  },
+  {
+    title: 'Nothing invented',
+    body: 'Missing details stay blank. Listings expire after two weeks unseen. Three reports from renters hide a listing.',
+  },
+  {
+    title: 'No login to browse',
+    body: 'Search, map, check a rent and get area alerts without an account. Owners list directly — no brokerage.',
+  },
+];
+
 export default async function Home() {
   const supabase = createPublicClient();
-  const [stats, active] = await Promise.all([getMarketStats(supabase), getActiveListingCount(supabase)]);
-  const markets = Object.keys(stats).length;
+  const [stats, active, areas] = await Promise.all([
+    getMarketStats(supabase),
+    getActiveListingCount(supabase),
+    getAreas(supabase),
+  ]);
+  const markets = Object.values(stats).filter(s => s.count >= MIN_COMPS).length;
+
+  // Live 2BHK medians, busiest markets first. Real numbers only.
+  const twoBhk = areas
+    .map(a => ({ ...a, stat: stats[marketKey(a.area_id, '2BHK')] }))
+    .filter(a => a.stat && a.stat.count >= MIN_COMPS && areaSlug(a.name))
+    .sort((a, b) => b.stat!.count - a.stat!.count);
+  const featured = twoBhk[0];
+  const list = twoBhk.slice(0, 6).sort((a, b) => b.stat!.median - a.stat!.median);
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white selection:bg-[#FF385C] selection:text-white">
-      <section className="relative pt-36 pb-24 lg:pt-48 lg:pb-36 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="max-w-4xl">
-            <p className="inline-flex items-center gap-3 px-3 py-1.5 border border-white/10 text-xs font-bold tracking-widest text-[#FF385C] uppercase mb-8">
-              <span className="h-1.5 w-1.5 bg-[#FF385C] rounded-full" />
-              Bangalore rent intelligence
-            </p>
-            <h1 className="text-5xl sm:text-6xl lg:text-8xl font-black tracking-tighter mb-8 leading-[1.05]">
-              Stop guessing. <br />
-              <span className="text-gray-500">KNOW what it&apos;s worth.</span>
-            </h1>
-            <p className="text-lg sm:text-xl lg:text-2xl text-gray-300 mb-10 leading-relaxed max-w-2xl font-light">
-              Every Bangalore listing priced against real comparable listings in the same area and BHK — under market, at market, or over — with the comps count to prove it.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Link href="/check" className="inline-flex justify-center items-center px-8 py-4 text-sm font-bold tracking-widest uppercase bg-[#00A699] text-white hover:bg-white hover:text-black transition-colors">
-                Is my rent fair?
-              </Link>
-              <Link href="/properties" className="inline-flex justify-center items-center px-8 py-4 text-sm font-bold tracking-widest uppercase bg-white text-black hover:bg-[#FF385C] hover:text-white transition-colors">
-                Browse flats
-              </Link>
-              <Link href="/insights" className="inline-flex justify-center items-center px-8 py-4 text-sm font-bold tracking-widest uppercase border border-white/20 text-white hover:border-white transition-colors">
-                Rent index
-              </Link>
-            </div>
-            {active > 0 && (
-              <p className="mt-10 text-xs font-mono text-gray-400 uppercase tracking-widest">
-                {active.toLocaleString('en-IN')} live listings · {markets} area·BHK markets priced · refreshed twice daily
-              </p>
-            )}
-          </div>
-        </div>
-      </section>
-
-      <section className="py-24 bg-white text-black">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="mb-16 border-b border-gray-200 pb-8 max-w-2xl">
-            <p className="text-sm font-bold tracking-widest text-[#FF385C] uppercase mb-4">How it works</p>
-            <h2 className="text-4xl sm:text-5xl font-black tracking-tighter">Data, not broker talk.</h2>
-          </div>
-          <div className="grid md:grid-cols-3 gap-x-12 gap-y-12">
-            <div>
-              <p className="mb-4 font-mono text-[#FF385C] text-sm">01 / COMPS</p>
-              <h3 className="text-2xl font-extrabold mb-3 tracking-tight">Median of real listings</h3>
-              <p className="text-gray-600 leading-relaxed text-lg">We compare each flat with live listings of the same BHK in the same area. Fewer than 3 comparables? We say so instead of guessing.</p>
-            </div>
-            <div>
-              <p className="mb-4 font-mono text-[#FF385C] text-sm">02 / HONEST DATA</p>
-              <h3 className="text-2xl font-extrabold mb-3 tracking-tight">Nothing invented</h3>
-              <p className="text-gray-600 leading-relaxed text-lg">Missing fields stay blank. Stale listings expire after two weeks. Anyone can flag a fake listing; three flags hide it.</p>
-            </div>
-            <div>
-              <p className="mb-4 font-mono text-[#FF385C] text-sm">03 / NO LOGIN</p>
-              <h3 className="text-2xl font-extrabold mb-3 tracking-tight">No data hostage</h3>
-              <p className="text-gray-600 leading-relaxed text-lg">Browse, map, check rents and watch an area by email without an account. Owners can list directly, no brokerage.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="py-24 bg-[#0A0A0A] border-t border-white/10">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
-          <h2 className="text-4xl sm:text-6xl font-black tracking-tighter mb-6">Got a flat in mind?</h2>
-          <p className="text-lg text-gray-300 mb-10 font-light max-w-2xl mx-auto">
-            Paste the listing link or just type &ldquo;2BHK HSR 42k&rdquo; — get the market median, the comps behind it, and cheaper flats nearby.
+    <>
+      {/* Hero */}
+      <section className="pt-32 pb-20 sm:pt-40 sm:pb-28 text-center">
+        <Container>
+          <p className="text-eyebrow mb-4">Bangalore rent index</p>
+          <h1 className="text-display mx-auto max-w-4xl text-balance">
+            Know what a flat is really worth.
+          </h1>
+          <p className="text-lead mx-auto mt-6 max-w-2xl text-label-2 text-balance">
+            Every listing is priced against real flats of the same size in the same area — under market, at market or over, with the numbers to show for it.
           </p>
-          <Link href="/check" className="inline-flex justify-center items-center px-12 py-5 text-sm font-bold uppercase tracking-widest bg-[#FF385C] text-white hover:bg-white hover:text-black transition-colors">
-            Check a rent
-          </Link>
-        </div>
+          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row sm:gap-6">
+            <Link href="/check" className="btn btn-primary btn-lg">Is my rent fair?</Link>
+            <Link href="/properties" className="link link-chevron text-[1.0625rem]">Browse flats</Link>
+          </div>
+          {active > 0 && (
+            <p className="mt-10 text-footnote text-label-2 num">
+              {active.toLocaleString('en-IN')} live listings · {markets} markets with enough data · updated daily
+            </p>
+          )}
+        </Container>
       </section>
 
-      <footer className="bg-[#050505] py-14">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row gap-6 justify-between text-gray-400 font-mono text-xs">
-          <p className="font-bold text-white tracking-widest">RENTWISE<span className="text-[#FF385C]">.</span></p>
-          <nav className="flex flex-wrap gap-6 uppercase tracking-widest">
-            <Link href="/insights" className="hover:text-white">Rent index</Link>
-            <Link href="/data" className="hover:text-white">Open data</Link>
-            <Link href="/register/landlord" className="hover:text-white">List your flat</Link>
-            <a href="https://github.com/devag7/rentwise" className="hover:text-white">GitHub</a>
-            <a href="mailto:rentwise@devshipit.com" className="hover:text-white">Contact</a>
-          </nav>
-        </div>
-      </footer>
-    </div>
+      {/* Signature: a real market, drawn */}
+      {featured?.stat && (
+        <section className="pb-24 sm:pb-32">
+          <Container>
+            <Reveal className="card mx-auto max-w-3xl p-6 sm:p-10">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="text-title-3">2BHK in {featured.name}</h2>
+                <p className="text-footnote text-label-2 num">{featured.stat.count} live listings</p>
+              </div>
+              <p className="mt-1 text-callout text-label-2">
+                Half of these flats ask less than <span className="font-semibold text-label num">{formatINR(featured.stat.median)}</span> a month.
+              </p>
+              <MarketBar
+                className="mt-8"
+                median={featured.stat.median}
+                p25={featured.stat.p25}
+                p75={featured.stat.p75}
+                count={featured.stat.count}
+              />
+              <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-separator pt-6">
+                <p className="text-callout text-label-2">The dark band is the typical range; the line is the median.</p>
+                <Link href={`/bangalore/rent/${areaSlug(featured.name)}/2bhk`} className="link link-chevron text-callout">See this market</Link>
+              </div>
+            </Reveal>
+          </Container>
+        </section>
+      )}
+
+      {/* How it works */}
+      <section className="bg-surface-2 py-24 sm:py-32">
+        <Container>
+          <Reveal>
+            <h2 className="text-title-1 max-w-2xl">Data, not broker talk.</h2>
+          </Reveal>
+          <div className="mt-12 grid gap-5 md:grid-cols-3">
+            {PRINCIPLES.map((p, i) => (
+              <Reveal key={p.title} delay={i * 70} className="card p-7">
+                <h3 className="text-title-3">{p.title}</h3>
+                <p className="mt-3 text-label-2">{p.body}</p>
+              </Reveal>
+            ))}
+          </div>
+        </Container>
+      </section>
+
+      {/* Live medians */}
+      {list.length > 0 && (
+        <section className="py-24 sm:py-32">
+          <Container>
+            <Reveal className="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <h2 className="text-title-1">2BHK rent today.</h2>
+                <p className="mt-3 text-lead text-label-2">Median asking rent in the busiest areas.</p>
+              </div>
+              <Link href="/bangalore/rent" className="link link-chevron">All areas</Link>
+            </Reveal>
+            <Reveal delay={80} className="card mt-10 overflow-hidden">
+              <ul className="divide-y divide-separator">
+                {list.map(a => (
+                  <li key={a.area_id}>
+                    <Link
+                      href={`/bangalore/rent/${areaSlug(a.name)}/2bhk`}
+                      className="flex items-center justify-between gap-4 px-5 py-4 transition-colors hover:bg-fill sm:px-7"
+                    >
+                      <span className="text-headline">{a.name}</span>
+                      <span className="flex items-baseline gap-3">
+                        <span className="hidden text-footnote text-label-2 num sm:inline">{a.stat!.count} listings</span>
+                        <span className="text-headline num">{formatINR(a.stat!.median)}</span>
+                        <span aria-hidden className="link-chevron text-label-3" />
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Reveal>
+          </Container>
+        </section>
+      )}
+
+      {/* Closing CTA */}
+      <section className="bg-surface-2 py-24 text-center sm:py-32">
+        <Container narrow>
+          <Reveal>
+            <h2 className="text-title-1 text-balance">Got a flat in mind?</h2>
+            <p className="mt-4 text-lead text-label-2 text-balance">
+              Paste the listing link or type “2BHK HSR 42k”. See the market median, the comparables behind it and cheaper flats nearby.
+            </p>
+            <Link href="/check" className="btn btn-primary btn-lg mt-10">Check a rent</Link>
+          </Reveal>
+        </Container>
+      </section>
+    </>
   );
 }

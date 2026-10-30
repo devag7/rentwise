@@ -5,6 +5,7 @@ import { getMarketStats, marketKey, BHK_TYPES, areaSlug } from '@/utils/market';
 import { getAreas } from '@/utils/listings';
 import { BASE_URL, bhkSlug, formatINR, formatDate, todayIST } from './_lib';
 import { JsonLd, Breadcrumbs, CheckCta, breadcrumbJsonLd } from './_ui';
+import Container from '@/components/ui/Container';
 
 export const revalidate = 3600;
 
@@ -46,59 +47,69 @@ export default async function BangaloreRentIndex() {
     };
 
     return (
-        <div className="min-h-screen bg-[#0A0A0A] text-white pt-28 sm:pt-32 pb-24 px-4 sm:px-6 selection:bg-[#FF385C] selection:text-white overflow-x-hidden">
+        <div className="pt-28 pb-24 sm:pt-32 sm:pb-32">
             <JsonLd data={breadcrumbJsonLd(BASE_URL, crumbs)} />
             {rows.length > 0 && <JsonLd data={itemList} />}
-            <div className="max-w-5xl mx-auto">
+            <Container>
                 <Breadcrumbs crumbs={crumbs} />
-                <p className="text-sm font-bold tracking-widest text-[#00A699] uppercase mb-4">Bangalore rent index</p>
-                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tighter text-white mb-6">Rent in Bangalore, by area</h1>
-                <p className="text-gray-300 text-lg font-light max-w-2xl">
-                    Median asking rent for {rows.length} {rows.length === 1 ? 'area' : 'areas'} with at least 3 active comparable listings, as of {asOf}.
-                    Pick an area for ranges, trends and the cheapest live flats.
+                <h1 className="text-title-1 text-balance">Rent in Bangalore, by area</h1>
+                <p className="mt-4 max-w-2xl text-lead text-label-2 text-balance">
+                    Median asking rent for <span className="num">{rows.length}</span> {rows.length === 1 ? 'area' : 'areas'} with at least 3 live comparable listings, as of {asOf}.
+                    Pick an area for ranges, trends and the cheapest flats available now.
                 </p>
 
                 {rows.length === 0 ? (
-                    <div className="mt-12 bg-[#111] border border-white/10 p-8 sm:p-12 text-center">
-                        <p className="text-gray-400">No area has enough comparables yet. Check back after the next data sync.</p>
+                    <div className="card mt-12 px-6 py-16 text-center">
+                        <p className="text-title-3">No area has enough listings yet</p>
+                        <p className="mt-2 text-label-2">We publish a median once an area has 3 live comparables. Check back after the next data sync.</p>
+                        <Link href="/properties" className="btn btn-secondary mt-6">Browse flats</Link>
                     </div>
                 ) : (
-                    <ul className="mt-12 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <ul className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         {rows.map(r => (
-                            <li key={r.area_id} className="bg-[#111] border border-white/10 p-5 min-w-0">
-                                <Link href={`/bangalore/rent/${r.slug}`} className="text-lg font-black tracking-tight text-white hover:text-[#FF385C] transition-colors">
-                                    Rent in {r.name}
+                            <li key={r.area_id} className="card min-w-0 overflow-hidden">
+                                <Link
+                                    href={`/bangalore/rent/${r.slug}`}
+                                    className="flex items-center justify-between gap-3 px-5 pt-5 pb-3 transition-colors hover:text-accent"
+                                >
+                                    <h2 className="text-title-3 truncate">{r.name}</h2>
+                                    <span aria-hidden className="text-label-3">›</span>
                                 </Link>
-                                <div className="mt-3 flex flex-wrap gap-2">
-                                    {r.cells.map(c =>
-                                        c.stat ? (
-                                            <Link
-                                                key={c.bhk}
-                                                href={`/bangalore/rent/${r.slug}/${bhkSlug(c.bhk)}`}
-                                                className="px-3 py-1.5 border border-white/15 hover:border-white text-xs font-bold tracking-widest uppercase text-gray-300 hover:text-white transition-colors"
-                                            >
-                                                {c.bhk} <span className="font-mono normal-case tracking-normal text-white">{formatINR(c.stat.median)}</span>
-                                            </Link>
-                                        ) : (
-                                            <span key={c.bhk} className="px-3 py-1.5 border border-white/5 text-xs font-bold tracking-widest uppercase text-gray-500">
-                                                {c.bhk} —
-                                            </span>
-                                        )
-                                    )}
-                                </div>
+                                <ul className="divide-y divide-separator border-t border-separator">
+                                    {r.cells.map(c => (
+                                        <li key={c.bhk}>
+                                            {c.stat ? (
+                                                <Link
+                                                    href={`/bangalore/rent/${r.slug}/${bhkSlug(c.bhk)}`}
+                                                    className="flex items-baseline justify-between gap-3 px-5 py-2.5 text-callout transition-colors hover:bg-fill"
+                                                >
+                                                    <span className="text-label-2">{c.bhk}</span>
+                                                    <span className="font-semibold num">{formatINR(c.stat.median)}</span>
+                                                </Link>
+                                            ) : (
+                                                <div className="flex items-baseline justify-between gap-3 px-5 py-2.5 text-callout">
+                                                    <span className="text-label-2">{c.bhk}</span>
+                                                    <span className="text-footnote text-label-3">Too few listings</span>
+                                                </div>
+                                            )}
+                                        </li>
+                                    ))}
+                                </ul>
                             </li>
                         ))}
                     </ul>
                 )}
 
-                <p className="mt-6 text-[10px] font-mono text-gray-400 uppercase tracking-widest leading-relaxed">
-                    — = fewer than 3 active listings, so no median is published.{' '}
-                    <Link href="/data" className="underline hover:text-white">Download the data (CC BY 4.0)</Link> ·{' '}
-                    <Link href="/insights" className="underline hover:text-white">Full rent index table</Link>
+                <p className="mt-6 text-footnote text-label-2">
+                    Figures are median asking rent per month. “Too few listings” means fewer than 3 live comparables, so no median is published.
                 </p>
+                <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-footnote">
+                    <Link href="/insights" className="link link-chevron">Full rent index table</Link>
+                    <Link href="/data" className="link link-chevron">Download the data</Link>
+                </div>
 
                 <CheckCta />
-            </div>
+            </Container>
         </div>
     );
 }

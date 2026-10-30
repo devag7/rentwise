@@ -18,6 +18,7 @@ E2E against local build: `PLAYWRIGHT_BASE_URL=http://localhost:3000 npm run test
 ## Architecture
 
 - `src/app/` — App Router pages. API routes: `api/health`, `api/check-rent` (fallback for the `check-rent` Edge Function). Public pages read through the cookie-less `createPublicClient()` (`src/utils/supabase/public.ts`) so they can be ISR-cached; auth-bound code uses the `@supabase/ssr` client/server variants.
+- UI follows `docs/DESIGN.md` (Apple-inspired): semantic colour tokens + type scale + motion curves in `src/app/globals.css` (light/dark via `prefers-color-scheme`, no hex colours in components), primitives in `src/components/ui/` (`Container`, `Reveal`, `VerdictPill`, `MarketBar`). System font stack, no web fonts.
 - `src/proxy.ts` — refreshes Supabase session cookies, but only when an `sb-*-auth-token` cookie exists (anonymous traffic skips the Auth round trip).
 - Market stats live in Postgres views (`market_stats`, `paid_rent_stats`, `listing_report_counts`); `src/utils/market.ts#getMarketStats` reads them and falls back to computing in JS if the view is missing. Only `is_active` listings count; `src/utils/listings.ts#queryActive` retries without that filter on pre-phase-15 databases.
 - `supabase/functions/` — Deno Edge Functions (sync-nobroker, sync-magicbricks, send-alerts, check-rent), scheduled by pg_cron (`db/migrations/..._phase16_schedules.sql`). Excluded from the Next tsconfig/eslint. Deploy: `supabase/README.md`.
