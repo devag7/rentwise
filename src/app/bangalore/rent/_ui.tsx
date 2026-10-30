@@ -47,15 +47,15 @@ export function faqJsonLd(faqs: Faq[]) {
 
 export function Breadcrumbs({ crumbs }: { crumbs: Crumb[] }) {
     return (
-        <nav aria-label="Breadcrumb" className="mb-8">
-            <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] font-bold tracking-widest uppercase text-gray-400">
+        <nav aria-label="Breadcrumb" className="mb-6">
+            <ol className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-footnote text-label-2">
                 {crumbs.map((c, i) => (
-                    <li key={c.path} className="flex items-center gap-2">
-                        {i > 0 && <span aria-hidden className="text-gray-600">/</span>}
+                    <li key={c.path} className="flex items-center gap-1.5">
+                        {i > 0 && <span aria-hidden className="text-label-3">›</span>}
                         {i === crumbs.length - 1 ? (
-                            <span aria-current="page" className="text-gray-300">{c.name}</span>
+                            <span aria-current="page" className="text-label">{c.name}</span>
                         ) : (
-                            <Link href={c.path} className="hover:text-white transition-colors">{c.name}</Link>
+                            <Link href={c.path} className="hover:text-label hover:underline underline-offset-2">{c.name}</Link>
                         )}
                     </li>
                 ))}
@@ -65,15 +65,15 @@ export function Breadcrumbs({ crumbs }: { crumbs: Crumb[] }) {
 }
 
 export function SectionLabel({ children }: { children: React.ReactNode }) {
-    return <h2 className="text-sm font-bold tracking-widest text-[#00A699] uppercase mb-6">{children}</h2>;
+    return <h2 className="text-title-2 mb-5">{children}</h2>;
 }
 
 export function Stat({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: boolean }) {
     return (
-        <div className="bg-[#111] border border-white/10 p-5 min-w-0">
-            <p className="text-[10px] font-bold tracking-widest uppercase text-gray-400 mb-2">{label}</p>
-            <p className={`text-2xl sm:text-3xl font-black tracking-tighter break-words ${accent ? 'text-[#00A699]' : 'text-white'}`}>{value}</p>
-            {sub && <p className="text-xs text-gray-400 mt-2">{sub}</p>}
+        <div className="card min-w-0 p-5">
+            <p className="text-footnote text-label-2">{label}</p>
+            <p className={`mt-1 text-title-2 num break-words ${accent ? 'text-accent' : ''}`}>{value}</p>
+            {sub && <p className="mt-1 text-caption text-label-2">{sub}</p>}
         </div>
     );
 }
@@ -82,13 +82,16 @@ export function FaqSection({ faqs }: { faqs: Faq[] }) {
     if (faqs.length === 0) return null;
     return (
         <section className="mt-16" aria-labelledby="faq-heading">
-            <h2 id="faq-heading" className="text-sm font-bold tracking-widest text-[#00A699] uppercase mb-6">Questions, answered with the numbers above</h2>
-            <div className="divide-y divide-white/10 border-y border-white/10">
+            <h2 id="faq-heading" className="text-title-2 mb-5">Questions, answered with the numbers above</h2>
+            <div className="card divide-y divide-separator overflow-hidden">
                 {faqs.map(f => (
-                    <div key={f.q} className="py-5">
-                        <h3 className="text-base sm:text-lg font-bold text-white mb-2">{f.q}</h3>
-                        <p className="text-gray-300 leading-relaxed">{f.a}</p>
-                    </div>
+                    <details key={f.q} className="group px-5 py-4 sm:px-6 [&_summary::-webkit-details-marker]:hidden">
+                        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-headline">
+                            {f.q}
+                            <span aria-hidden className="text-label-3 transition-transform duration-200 group-open:rotate-90">›</span>
+                        </summary>
+                        <p className="mt-2 text-label-2">{f.a}</p>
+                    </details>
                 ))}
             </div>
         </section>
@@ -97,18 +100,12 @@ export function FaqSection({ faqs }: { faqs: Faq[] }) {
 
 export function CheckCta() {
     return (
-        <section className="mt-16 border border-[#FF385C]/40 bg-[#FF385C]/5 p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+        <section className="mt-16 rounded-[var(--radius-panel)] bg-surface-2 p-7 sm:p-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
             <div>
-                <p className="text-[10px] font-bold tracking-widest uppercase text-[#FF385C] mb-2">Fair-rent checker</p>
-                <p className="text-xl font-black tracking-tight text-white">Found a flat? Check if the rent is fair.</p>
-                <p className="text-gray-400 text-sm mt-1">Paste a listing link or type “2BHK HSR 42k”. Real comparables, no estimates.</p>
+                <p className="text-title-3">Found a flat? Check if the rent is fair.</p>
+                <p className="mt-1 text-callout text-label-2">Paste a listing link or type “2BHK HSR 42k”. Real comparables, no estimates.</p>
             </div>
-            <Link
-                href="/check"
-                className="shrink-0 inline-flex justify-center items-center px-8 py-4 text-sm font-bold tracking-widest uppercase bg-[#FF385C] text-white hover:bg-white hover:text-black transition-colors"
-            >
-                Check a rent
-            </Link>
+            <Link href="/check" className="btn btn-primary shrink-0">Check a rent</Link>
         </section>
     );
 }
