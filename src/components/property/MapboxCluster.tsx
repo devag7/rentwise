@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useSyncExternalStore } from 'react';
 import Map, { Marker, Popup, NavigationControl } from 'react-map-gl/mapbox';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Property } from '@/components/PropertyCard';
 import Link from 'next/link';
+import { formatINR } from '@/utils/market';
 
 interface Props {
     properties: Property[];
@@ -23,6 +24,15 @@ const areaCoordinates: Record<string, [number, number]> = {
     'Electronic City': [77.6662, 12.8399],
     'Banashankari': [77.5670, 12.9152],
 };
+
+// Map style follows the OS light/dark setting, like the rest of the site.
+const DARK_QUERY = '(prefers-color-scheme: dark)';
+const subscribeScheme = (cb: () => void) => {
+    const mq = window.matchMedia(DARK_QUERY);
+    mq.addEventListener('change', cb);
+    return () => mq.removeEventListener('change', cb);
+};
+const getScheme = () => window.matchMedia(DARK_QUERY).matches;
 
 export default function MapboxCluster({ properties }: Props) {
     const [selectedProperty, setSelectedProperty] = useState<(Property & { exact?: boolean }) | null>(null);
@@ -49,23 +59,24 @@ export default function MapboxCluster({ properties }: Props) {
     }, [properties]);
 
     const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+    const dark = useSyncExternalStore(subscribeScheme, getScheme, () => false);
 
     if (!mapboxToken) {
         return (
-            <div className="w-full h-full min-h-[500px] flex flex-col items-center justify-center bg-[#111] border border-white/10 p-8 text-center ring-1 ring-inset ring-white/5">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-[#00A699] mb-4 opacity-50 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+            <div className="flex min-h-[500px] w-full flex-col items-center justify-center rounded-[var(--radius-panel)] bg-surface-2 p-8 text-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="mb-4 h-10 w-10 text-label-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                 </svg>
-                <h3 className="text-xl font-bold text-white tracking-widest uppercase mb-2">Mapbox Matrix Offline</h3>
-                <p className="text-gray-500 font-mono text-xs uppercase tracking-widest max-w-md mx-auto">
-                    A valid Next Public Mapbox Token is required to render the geographical cluster. The system defaults back to standard Grid parameters.
+                <h3 className="text-title-3">The map isn&apos;t available right now</h3>
+                <p className="mt-2 max-w-md text-label-2">
+                    Switch back to the grid to see every flat in these results.
                 </p>
             </div>
         );
     }
 
     return (
-        <div className="w-full h-[600px] border border-white/10 relative shadow-2xl overflow-hidden">
+        <div className="rw-map relative h-[600px] w-full overflow-hidden rounded-[var(--radius-card)] shadow-card">
             <Map
                 mapboxAccessToken={mapboxToken}
                 initialViewState={{
@@ -73,42 +84,47 @@ export default function MapboxCluster({ properties }: Props) {
                     latitude: 12.9783,
                     zoom: 11
                 }}
-                mapStyle="mapbox://styles/mapbox/dark-v11"
+                mapStyle={dark ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11'}
                 attributionControl={false}
             >
                 <NavigationControl position="bottom-right" />
 
-                {mapData.map(p => (
-                    <Marker
-                        key={`marker-${p.property_id}`}
-                        longitude={p.longitude!}
-                        latitude={p.latitude!}
-                        anchor="bottom"
-                        onClick={(e: { originalEvent: MouseEvent }) => {
-                            e.originalEvent.stopPropagation();
-                            setSelectedProperty(p);
-                        }}
-                    >
-                        <div className="group cursor-pointer flex flex-col items-center">
-                            <div className="bg-[#FF385C] text-white px-2 py-1 text-[10px] font-bold tracking-widest shadow-lg transform transition-transform group-hover:scale-110 group-hover:bg-white group-hover:text-black">
-                                ₹{p.rent.toLocaleString('en-IN')}
+                {mapData.map(p => {
+                    const selected = selectedProperty?.property_id === p.property_id;
+                    return (
+                        <Marker
+                            key={`marker-${p.property_id}`}
+                            longitude={p.longitude!}
+                            latitude={p.latitude!}
+                            anchor="bottom"
+                            onClick={(e: { originalEvent: MouseEvent }) => {
+                                e.originalEvent.stopPropagation();
+                                setSelectedProperty(p);
+                            }}
+                        >
+                            <div
+                                className={`cursor-pointer rounded-full px-2.5 py-1 text-caption font-semibold num shadow-card transition-[transform,background-color,color] duration-200 ease-[var(--ease-out)] hover:scale-105 ${
+                                    selected ? 'bg-accent text-on-accent' : 'bg-surface-3 text-label'
+                                }`}
+                            >
+                                {formatINR(p.rent)}
                             </div>
-                            <div className="w-0 h-0 border-l-[6px] border-r-[6px] border-t-[8px] border-l-transparent border-r-transparent border-t-[#FF385C] group-hover:border-t-white transition-colors mt-[1px]"></div>
-                        </div>
-                    </Marker>
-                ))}
+                        </Marker>
+                    );
+                })}
 
                 {selectedProperty && (
                     <Popup
                         longitude={selectedProperty.longitude!}
                         latitude={selectedProperty.latitude!}
                         anchor="top"
+                        offset={8}
                         onClose={() => setSelectedProperty(null)}
                         closeOnClick={false}
-                        className="dark-map-popup z-50"
-                        maxWidth="300px"
+                        className="rw-map-popup z-50"
+                        maxWidth="280px"
                     >
-                        <div className="bg-[#111] border border-white/10 p-0 rounded-none shadow-2xl overflow-hidden">
+                        <div className="overflow-hidden">
                             {(selectedProperty.image_url || selectedProperty.image_data) && (
                                 <img
                                     src={
@@ -116,24 +132,27 @@ export default function MapboxCluster({ properties }: Props) {
                                             ? selectedProperty.image_url.split(',')[0].trim()
                                             : `data:image/jpeg;base64,${selectedProperty.image_data}`
                                     }
-                                    alt="Property Thumbnail"
-                                    className="w-full h-32 object-cover"
+                                    alt={`${selectedProperty.property_type} in ${selectedProperty.area_name}`}
+                                    className="h-32 w-full bg-fill object-cover"
                                     onError={(e) => { e.currentTarget.style.display = 'none'; }}
                                 />
                             )}
                             <div className="p-4">
-                                <h4 className="text-white font-bold text-sm truncate mb-1">{selectedProperty.address}</h4>
-                                <p className="text-[#00A699] text-xs font-bold tracking-widest uppercase mb-1 text-left">
-                                    {selectedProperty.property_type} • {selectedProperty.area_name}
+                                <p className="text-headline num">
+                                    {formatINR(selectedProperty.rent)}<span className="text-footnote font-normal text-label-2">/mo</span>
                                 </p>
-                                <p className="text-gray-500 text-[9px] font-mono uppercase tracking-widest mb-3">
-                                    {selectedProperty.exact ? 'Exact location' : 'Approximate — area level'}
+                                <h4 className="mt-0.5 truncate text-callout text-label">{selectedProperty.address}</h4>
+                                <p className="text-footnote text-label-2">
+                                    {selectedProperty.property_type} · {selectedProperty.area_name}
+                                </p>
+                                <p className="mt-1 text-caption text-label-2">
+                                    {selectedProperty.exact ? 'Exact location' : 'Approximate location (area only)'}
                                 </p>
                                 <Link
                                     href={`/properties/${selectedProperty.property_id}`}
-                                    className="block w-full text-center bg-white text-black py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-[#FF385C] hover:text-white transition-colors"
+                                    className="btn btn-primary btn-sm mt-3 w-full"
                                 >
-                                    View Coordinates
+                                    View flat
                                 </Link>
                             </div>
                         </div>
@@ -141,33 +160,44 @@ export default function MapboxCluster({ properties }: Props) {
                 )}
             </Map>
 
-            {/* Dark mode override for Popup borders generated by Mapbox */}
+            {/* Restyle Mapbox's own popup and controls with the design tokens. */}
             <style jsx global>{`
-                .mapboxgl-popup-content {
-                    background: transparent !important;
+                .rw-map-popup .mapboxgl-popup-content {
+                    background: var(--surface-3) !important;
+                    color: var(--label);
                     padding: 0 !important;
-                    border-radius: 0 !important;
-                    box-shadow: none !important;
+                    border-radius: var(--radius-card) !important;
+                    box-shadow: var(--shadow-raised) !important;
+                    overflow: hidden;
+                    font-family: var(--font-sans);
                 }
-                .mapboxgl-popup-tip {
+                .rw-map-popup .mapboxgl-popup-tip {
                     display: none !important;
                 }
-                .mapboxgl-popup-close-button {
-                    background: rgba(0,0,0,0.5);
-                    color: white;
-                    padding: 4px;
+                .rw-map-popup .mapboxgl-popup-close-button {
+                    background: var(--material);
+                    -webkit-backdrop-filter: saturate(180%) blur(20px);
+                    backdrop-filter: saturate(180%) blur(20px);
+                    color: var(--label);
                     right: 8px;
                     top: 8px;
-                    border-radius: 100%;
-                    width: 20px;
-                    height: 20px;
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 9999px;
+                    font-size: 18px;
+                    line-height: 1;
                     display: flex;
                     align-items: center;
                     justify-content: center;
                 }
-                .mapboxgl-popup-close-button:hover {
-                    background: #FF385C;
-                    color: white;
+                .rw-map .mapboxgl-ctrl-group {
+                    background: var(--surface-3);
+                    border-radius: var(--radius-control);
+                    box-shadow: var(--shadow-card);
+                    overflow: hidden;
+                }
+                .rw-map .mapboxgl-ctrl-group button + button {
+                    border-top-color: var(--separator);
                 }
             `}</style>
         </div>

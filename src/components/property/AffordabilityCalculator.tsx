@@ -15,29 +15,11 @@ export default function AffordabilityCalculator({ monthlyRent }: Props) {
     // Calculate affordability metrics
     const rentToIncomeRatio = income > 0 ? (monthlyRent / income) * 100 : 0;
 
-    let statusText = "Awaiting Data";
-    let statusColor = "text-gray-500";
-    let statusBg = "bg-white/5";
-    let borderColor = "border-white/10";
-
-    if (income > 0) {
-        if (rentToIncomeRatio <= 30) {
-            statusText = "Excellent Affordability";
-            statusColor = "text-[#00A699]";
-            statusBg = "bg-[#00A699]/10";
-            borderColor = "border-[#00A699]/30";
-        } else if (rentToIncomeRatio <= 40) {
-            statusText = "Moderate Risk (Budget Cautious)";
-            statusColor = "text-yellow-500";
-            statusBg = "bg-yellow-500/10";
-            borderColor = "border-yellow-500/30";
-        } else {
-            statusText = "High Risk (Exceeds 40% threshold)";
-            statusColor = "text-[#FF385C]";
-            statusBg = "bg-[#FF385C]/10";
-            borderColor = "border-[#FF385C]/30";
-        }
-    }
+    const tone = rentToIncomeRatio <= 30
+        ? { text: 'Comfortable: rent is 30% of your pay or less.', fg: 'text-good', bar: 'bg-good' }
+        : rentToIncomeRatio <= 40
+            ? { text: 'A stretch: rent is 30–40% of your pay.', fg: 'text-warn', bar: 'bg-warn' }
+            : { text: 'Too high: rent is over 40% of your pay.', fg: 'text-bad', bar: 'bg-bad' };
 
     const formatCurrency = (val: string) => {
         const numbers = val.replace(/\D/g, '');
@@ -46,50 +28,40 @@ export default function AffordabilityCalculator({ monthlyRent }: Props) {
     };
 
     return (
-        <div className="mb-10 bg-[#0A0A0A] border border-white/5 p-6 relative overflow-hidden">
-            <h4 className="text-[10px] font-bold text-white uppercase tracking-widest mb-4 flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Financial Affordability Alg.
-            </h4>
+        <section className="card p-6" aria-labelledby="afford-heading">
+            <h2 id="afford-heading" className="text-headline">Can you afford it?</h2>
 
-            <div className="flex flex-col mb-6">
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Enter Net Monthly Income</label>
+            <div className="mt-4">
+                <label htmlFor="afford-income" className="field-label">Your monthly take-home pay</label>
                 <div className="relative">
-                    <span className="absolute left-4 top-3 text-gray-500 font-bold font-mono">₹</span>
+                    <span aria-hidden className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-label-2">₹</span>
                     <input
+                        id="afford-income"
                         type="text"
+                        inputMode="numeric"
                         value={incomeStr}
                         onChange={(e) => setIncomeStr(formatCurrency(e.target.value))}
                         placeholder="0"
-                        className="w-full pl-8 pr-4 py-3 bg-[#111] text-white border-b border-white/20 focus:outline-none focus:border-white transition-colors font-mono text-xl font-bold placeholder-gray-800"
+                        className="field pl-8 num"
                     />
                 </div>
             </div>
 
             {income > 0 && (
-                <div className="animate-fade-in border-t border-white/10 pt-6">
-                    <div className="flex justify-between items-end mb-2">
-                        <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Rent-to-Income Ratio</span>
-                        <span className={`text-2xl font-black ${statusColor}`}>
-                            {rentToIncomeRatio.toFixed(1)}%
-                        </span>
+                <div className="mt-5 border-t border-separator pt-5" aria-live="polite">
+                    <div className="flex items-baseline justify-between gap-3">
+                        <span className="text-callout text-label-2">Rent as share of pay</span>
+                        <span className={`text-title-3 num ${tone.fg}`}>{rentToIncomeRatio.toFixed(1)}%</span>
                     </div>
-
-                    <div className={`mt-4 p-3 border text-[10px] font-bold uppercase tracking-widest ${statusBg} ${statusColor} ${borderColor} flex items-center`}>
-                        <span className="w-1.5 h-1.5 rounded-full mr-2 currentColor bg-current"></span>
-                        {statusText}
-                    </div>
-
-                    <div className="w-full bg-[#111] h-1.5 mt-4 overflow-hidden">
+                    <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-fill">
                         <div
-                            className={`h-full ${statusColor.replace('text-', 'bg-')}`}
-                            style={{ width: `${Math.min(rentToIncomeRatio, 100)}%`, transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)' }}
-                        ></div>
+                            className={`h-full w-full origin-left rounded-full transition-transform duration-[250ms] ease-[var(--ease-out)] ${tone.bar}`}
+                            style={{ transform: `scaleX(${Math.min(rentToIncomeRatio, 100) / 100})` }}
+                        />
                     </div>
+                    <p className={`mt-3 text-footnote font-semibold ${tone.fg}`}>{tone.text}</p>
                 </div>
             )}
-        </div>
+        </section>
     );
 }

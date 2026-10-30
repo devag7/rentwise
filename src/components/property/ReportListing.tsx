@@ -9,7 +9,7 @@ const REASONS = [
     { value: 'rented_out', label: 'Already rented out' },
     { value: 'wrong_price', label: 'Price is wrong' },
     { value: 'fake', label: 'Looks fake' },
-    { value: 'spam', label: 'Spam / duplicate' },
+    { value: 'spam', label: 'Spam or duplicate' },
     { value: 'other', label: 'Something else' },
 ] as const;
 
@@ -42,19 +42,19 @@ export default function ReportListing({ propertyId }: { propertyId: number }) {
             reporter_session: sessionId(),
         });
         if (error && error.code !== '23505') {
-            toast.error('Could not submit. Try again.');
+            toast.error('Couldn\'t send the report. Try again.');
             return;
         }
         track('listing_reported', { property_id: propertyId, reason });
         setSent(true);
-        toast.success('Thanks — flagged for review.');
+        toast.success('Thanks. We\'ll review this listing.');
     };
 
     if (sent) {
         return (
-            <span className="text-[10px] font-mono text-gray-600 uppercase tracking-widest">
-                Reported · thank you
-            </span>
+            <p className="text-footnote text-label-2" role="status">
+                Reported. Thanks — we&apos;ll review this listing.
+            </p>
         );
     }
 
@@ -62,51 +62,51 @@ export default function ReportListing({ propertyId }: { propertyId: number }) {
         return (
             <button
                 onClick={() => setOpen(true)}
-                className="text-[10px] font-mono text-gray-600 hover:text-[#FF385C] uppercase tracking-widest transition-colors"
+                className="inline-flex items-center gap-1.5 self-start text-footnote text-label-2 transition-colors hover:text-label"
             >
-                ⚐ Report this listing
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-3.5 w-3.5" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 21V4m0 0h11l-1.5 4L15 12H4" />
+                </svg>
+                Report this listing
             </button>
         );
     }
 
     return (
-        <div className="bg-[#0A0A0A] border border-white/10 p-4 w-full max-w-sm">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">What&apos;s wrong?</p>
-            <div className="flex flex-col gap-2 mb-3">
-                {REASONS.map(r => (
-                    <label key={r.value} className="flex items-center gap-2 cursor-pointer text-xs text-gray-300">
-                        <input
-                            type="radio"
-                            name="report-reason"
-                            value={r.value}
-                            checked={reason === r.value}
-                            onChange={() => setReason(r.value)}
-                            className="accent-[#FF385C]"
-                        />
-                        {r.label}
-                    </label>
-                ))}
-            </div>
+        <div className="card pop-in w-full max-w-sm p-5">
+            <fieldset>
+                <legend className="text-headline">What&apos;s wrong with this listing?</legend>
+                <div className="mt-3 flex flex-col gap-1">
+                    {REASONS.map(r => (
+                        <label key={r.value} className="flex min-h-[36px] cursor-pointer items-center gap-2.5 text-callout">
+                            <input
+                                type="radio"
+                                name="report-reason"
+                                value={r.value}
+                                checked={reason === r.value}
+                                onChange={() => setReason(r.value)}
+                                className="h-4 w-4 accent-accent"
+                            />
+                            {r.label}
+                        </label>
+                    ))}
+                </div>
+            </fieldset>
+            <label htmlFor="report-detail" className="field-label mt-3">Details (optional)</label>
             <textarea
+                id="report-detail"
                 value={detail}
                 onChange={e => setDetail(e.target.value)}
-                placeholder="Optional detail…"
+                placeholder="Anything that helps us check it"
                 maxLength={500}
                 rows={2}
-                className="w-full bg-transparent border border-white/10 px-3 py-2 text-xs text-white placeholder-gray-700 focus:outline-none focus:border-[#FF385C] mb-3 font-mono"
+                className="field text-callout"
             />
-            <div className="flex gap-2">
-                <button
-                    onClick={submit}
-                    disabled={!reason}
-                    className="flex-1 py-2 bg-[#FF385C] text-white text-[10px] font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors disabled:opacity-40"
-                >
-                    Submit
+            <div className="mt-4 flex gap-2">
+                <button onClick={submit} disabled={!reason} className="btn btn-secondary btn-sm">
+                    Send report
                 </button>
-                <button
-                    onClick={() => setOpen(false)}
-                    className="py-2 px-4 border border-white/20 text-gray-400 text-[10px] font-bold uppercase tracking-widest hover:text-white transition-colors"
-                >
+                <button onClick={() => setOpen(false)} className="btn btn-sm text-label-2 hover:text-label">
                     Cancel
                 </button>
             </div>

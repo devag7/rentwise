@@ -44,7 +44,7 @@ export default function CommuteAnalyzer({ propertyArea, latitude, longitude }: P
                 : (await geocode(`${propertyArea}, Bengaluru`))?.coords ?? null;
             const dest = await geocode(workplace.trim());
             if (!origin || !dest) {
-                setError('Could not find that place in Bangalore. Try a company or landmark name.');
+                setError('We couldn\'t find that place in Bangalore. Try a company or landmark name.');
                 return;
             }
             const url = `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${origin.join(',')};${dest.coords.join(',')}?access_token=${TOKEN}&overview=false`;
@@ -52,7 +52,7 @@ export default function CommuteAnalyzer({ propertyArea, latitude, longitude }: P
             const json = await res.json();
             const route = json.routes?.[0];
             if (!route) {
-                setError('No driving route found.');
+                setError('No driving route found to that place. Try a nearby landmark.');
                 return;
             }
             setResult({
@@ -63,37 +63,44 @@ export default function CommuteAnalyzer({ propertyArea, latitude, longitude }: P
             });
             track('commute_checked', { area: propertyArea });
         } catch {
-            setError('Routing service unavailable. Try again shortly.');
+            setError('Couldn\'t get directions right now. Try again in a minute.');
         } finally {
             setBusy(false);
         }
     };
 
     return (
-        <div className="bg-[#0A0A0A] border border-white/5 p-6 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-1 h-full bg-[#FF385C]" />
-            <h2 className="text-[10px] font-bold text-[#FF385C] uppercase tracking-widest mb-4">Commute check</h2>
-            <form onSubmit={handleCalculate} className="flex gap-2">
-                <label htmlFor="commute-to" className="sr-only">Workplace</label>
-                <input
-                    id="commute-to"
-                    value={workplace}
-                    onChange={e => setWorkplace(e.target.value)}
-                    placeholder="Office, e.g. Manyata Tech Park"
-                    className="flex-1 min-w-0 px-3 py-2 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#FF385C] placeholder-gray-600 text-sm"
-                />
-                <button type="submit" disabled={busy} className="px-4 py-2 bg-white text-black text-[10px] font-bold uppercase tracking-widest disabled:opacity-50">
-                    {busy ? '…' : 'Go'}
-                </button>
+        <section className="card p-6" aria-labelledby="commute-heading">
+            <h2 id="commute-heading" className="text-headline">Commute</h2>
+            <form onSubmit={handleCalculate} className="mt-4">
+                <label htmlFor="commute-to" className="field-label">Where do you work?</label>
+                <div className="flex gap-2">
+                    <input
+                        id="commute-to"
+                        value={workplace}
+                        onChange={e => setWorkplace(e.target.value)}
+                        placeholder="e.g. Manyata Tech Park"
+                        className="field min-w-0 flex-1"
+                    />
+                    <button type="submit" disabled={busy} className="btn btn-secondary shrink-0">
+                        {busy ? 'Checking…' : 'Check'}
+                    </button>
+                </div>
             </form>
-            {error && <p className="mt-4 text-xs text-gray-400">{error}</p>}
+            {error && <p role="alert" className="mt-3 text-footnote text-bad">{error}</p>}
             {result && (
-                <div className="mt-5">
-                    <p className="text-3xl font-black text-white tracking-tighter">{result.minutes} min <span className="text-sm font-bold text-gray-400">by car, current traffic</span></p>
-                    <p className="text-xs text-gray-400 mt-1">{result.km} km to {result.to}</p>
-                    {result.approx && <p className="text-[10px] text-gray-500 mt-2 uppercase tracking-widest">From the {propertyArea} area centre — exact location not published</p>}
+                <div className="pop-in mt-5" aria-live="polite">
+                    <p className="text-title-2 num">{result.minutes} min</p>
+                    <p className="text-callout text-label-2">
+                        By car in current traffic · <span className="num">{result.km} km</span> to {result.to}
+                    </p>
+                    {result.approx && (
+                        <p className="mt-2 text-caption text-label-2">
+                            Measured from the centre of {propertyArea}; the exact address isn&apos;t published.
+                        </p>
+                    )}
                 </div>
             )}
-        </div>
+        </section>
     );
 }

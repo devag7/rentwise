@@ -47,49 +47,63 @@ export default function PropertyReviews({ propertyId, initialReviews }: { proper
     };
 
     return (
-        <section className="bg-[#111] border border-white/10 p-6 sm:p-10">
-            <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
+        <section className="card p-6 sm:p-8" aria-labelledby="reviews-heading">
+            <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                    <h2 className="text-sm font-bold text-white uppercase tracking-widest">Tenant reviews</h2>
-                    <p className="text-xs text-gray-400 mt-1">
+                    <h2 id="reviews-heading" className="text-title-3">Reviews from tenants</h2>
+                    <p className="mt-1 text-callout text-label-2 num">
                         {reviews.length
-                            ? `${avg.toFixed(1)} / 5 from ${reviews.length} review${reviews.length > 1 ? 's' : ''}`
+                            ? `${avg.toFixed(1)} out of 5 from ${reviews.length} review${reviews.length > 1 ? 's' : ''}`
                             : 'No reviews yet. Only tenants who applied through RentWise can review a flat.'}
                     </p>
                 </div>
                 {user && role === 'tenant' && !open && (
-                    <button onClick={() => setOpen(true)} className="px-4 py-2 border border-white/20 text-white text-[10px] font-bold uppercase tracking-widest hover:border-white">
+                    <button onClick={() => setOpen(true)} className="btn btn-secondary btn-sm">
                         Write a review
                     </button>
                 )}
             </div>
 
             {open && (
-                <form onSubmit={submit} className="mb-8 flex flex-col gap-4 max-w-xl">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest" htmlFor="rv-rating">Rating</label>
-                    <select id="rv-rating" value={rating} onChange={e => setRating(parseInt(e.target.value))} className="bg-[#0A0A0A] text-white border border-white/20 p-2 w-32">
-                        {[5, 4, 3, 2, 1].map(n => <option key={n} value={n}>{n} ★</option>)}
-                    </select>
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest" htmlFor="rv-text">Review</label>
-                    <textarea id="rv-text" value={text} onChange={e => setText(e.target.value)} maxLength={1000}
-                        className="bg-[#0A0A0A] text-white border border-white/20 p-3 min-h-[100px] text-sm" />
-                    <button disabled={busy} className="self-start px-6 py-3 bg-white text-black text-[10px] font-bold uppercase tracking-widest disabled:opacity-50">
-                        {busy ? 'Posting…' : 'Post review'}
-                    </button>
+                <form onSubmit={submit} className="mt-6 flex max-w-xl flex-col gap-4 border-t border-separator pt-6">
+                    <div>
+                        <label className="field-label" htmlFor="rv-rating">Rating</label>
+                        <select id="rv-rating" value={rating} onChange={e => setRating(parseInt(e.target.value))} className="field w-40">
+                            {[5, 4, 3, 2, 1].map(n => <option key={n} value={n}>{n} out of 5</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="field-label" htmlFor="rv-text">Your review (optional)</label>
+                        <textarea id="rv-text" value={text} onChange={e => setText(e.target.value)} maxLength={1000}
+                            placeholder="What was the flat and the landlord like?"
+                            className="field min-h-[110px] resize-y" />
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button disabled={busy} className="btn btn-primary btn-sm">
+                            {busy ? 'Posting…' : 'Post review'}
+                        </button>
+                        <button type="button" onClick={() => setOpen(false)} className="btn btn-secondary btn-sm">
+                            Cancel
+                        </button>
+                    </div>
                 </form>
             )}
 
-            <ul className="flex flex-col gap-6">
-                {reviews.map(r => (
-                    <li key={r.review_id} className="border-t border-white/5 pt-6">
-                        <p className="text-[#00A699] text-sm">{'★'.repeat(r.rating)}<span className="text-gray-700">{'★'.repeat(5 - r.rating)}</span></p>
-                        {r.review_text && <p className="text-gray-300 text-sm mt-2 leading-relaxed">{r.review_text}</p>}
-                        <p className="text-[10px] text-gray-500 font-mono uppercase tracking-widest mt-2">
-                            Verified applicant · {new Date(r.created_at).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}
-                        </p>
-                    </li>
-                ))}
-            </ul>
+            {reviews.length > 0 && (
+                <ul className="mt-6 divide-y divide-separator border-t border-separator">
+                    {reviews.map(r => (
+                        <li key={r.review_id} className="py-5">
+                            <p className="text-callout tracking-[0.1em]" role="img" aria-label={`${r.rating} out of 5`}>
+                                <span className="text-label">{'★'.repeat(r.rating)}</span><span className="text-label-3">{'★'.repeat(5 - r.rating)}</span>
+                            </p>
+                            {r.review_text && <p className="mt-2 max-w-2xl">{r.review_text}</p>}
+                            <p className="mt-2 text-footnote text-label-2">
+                                Verified applicant · {new Date(r.created_at).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}
+                            </p>
+                        </li>
+                    ))}
+                </ul>
+            )}
         </section>
     );
 }

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { BHK_TYPES, formatINR, areaSlug, type MarketStatsMap, marketKey } from '@/utils/market';
+import MarketBar from '@/components/ui/MarketBar';
 
 /**
  * Area market snapshot — real medians from live listings (replaces the old
@@ -20,25 +21,35 @@ export default function NeighborhoodProfile({
     if (!cells.some(c => c.stat)) return null;
 
     return (
-        <section className="bg-[#111] border border-white/10 p-6 sm:p-10">
-            <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
-                <h2 className="text-sm font-bold text-white uppercase tracking-widest">{areaName} rent market</h2>
-                <Link href={`/bangalore/rent/${areaSlug(areaName)}`} className="text-[10px] font-bold text-[#00A699] uppercase tracking-widest hover:underline">
-                    Full {areaName} rent report →
+        <section className="card p-6 sm:p-8" aria-labelledby="area-market-heading">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+                <div>
+                    <h2 id="area-market-heading" className="text-title-3">Rent in {areaName}</h2>
+                    <p className="mt-1 text-callout text-label-2">Median asking rent of live listings, by size.</p>
+                </div>
+                <Link href={`/bangalore/rent/${areaSlug(areaName)}`} className="link link-chevron text-callout">
+                    Full {areaName} rent report
                 </Link>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-white/10 border border-white/10">
+            <div className="mt-6 grid divide-y divide-separator sm:grid-cols-3 sm:divide-x sm:divide-y-0">
                 {cells.map(({ bhk, stat, paid: p }) => (
-                    <div key={bhk} className="bg-[#0A0A0A] p-5">
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">{bhk} median asking</p>
+                    <div key={bhk} className="min-w-0 py-5 first:pt-0 last:pb-0 sm:px-5 sm:py-0 sm:first:pl-0 sm:last:pr-0">
+                        <p className="text-footnote text-label-2">{bhk}</p>
                         {stat ? (
                             <>
-                                <p className="text-2xl font-black text-white tracking-tighter">{formatINR(stat.median)}</p>
-                                <p className="text-[10px] font-mono text-gray-500 mt-1">{stat.count} listings{stat.p25 && stat.p75 ? ` · ${formatINR(stat.p25)}–${formatINR(stat.p75)}` : ''}</p>
-                                {p && <p className="text-[10px] font-mono text-[#00A699] mt-1">Tenants report paying {formatINR(p.median)} ({p.count})</p>}
+                                <p className="mt-0.5 text-title-3 num">{formatINR(stat.median)}<span className="text-footnote font-normal text-label-2">/mo</span></p>
+                                <p className="text-caption text-label-2 num">{stat.count} live listings</p>
+                                {stat.p25 != null && stat.p75 != null && (
+                                    <MarketBar className="mt-3" median={stat.median} p25={stat.p25} p75={stat.p75} count={stat.count} />
+                                )}
+                                {p && (
+                                    <p className="mt-2 text-caption text-label-2 num">
+                                        Tenants report paying {formatINR(p.median)} ({p.count} reports)
+                                    </p>
+                                )}
                             </>
                         ) : (
-                            <p className="text-sm text-gray-600">Not enough listings</p>
+                            <p className="mt-1 text-callout text-label-3">Too few listings to say</p>
                         )}
                     </div>
                 ))}

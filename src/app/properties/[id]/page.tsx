@@ -14,6 +14,7 @@ import ReportListing from '@/components/property/ReportListing';
 import { createPublicClient } from '@/utils/supabase/public';
 import { getMarketStats, marketKey, getVerdict, formatINR } from '@/utils/market';
 import { CARD_COLUMNS, toProperty, queryActive } from '@/utils/listings';
+import Container from '@/components/ui/Container';
 
 // Listing pages are public data: cache and refresh every 10 minutes.
 export const revalidate = 600;
@@ -116,145 +117,150 @@ export default async function PropertyDetails({ params }: { params: Promise<{ id
         ['Furnishing', property.furnishing_status || 'Not specified'],
     ];
 
+    const photoAlt = `${property.property_type || 'Flat'} in ${property.area_name}`;
+
     return (
-        <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col items-center pb-20 pt-28 px-4 sm:px-6 selection:bg-[#FF385C] selection:text-white">
-            <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+        <div className="pt-28 pb-24 sm:pt-32">
+            <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
 
-            <div className="max-w-5xl w-full">
-                <nav className="text-[10px] font-mono text-gray-500 uppercase tracking-widest mb-6" aria-label="Breadcrumb">
-                    <Link href="/properties" className="hover:text-white">Flats</Link>
-                    {' / '}
-                    <Link href={`/properties?area_id=${areaId}`} className="hover:text-white">{property.area_name}</Link>
+            <Container>
+                <nav aria-label="Breadcrumb" className="mb-6">
+                    <ol className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-footnote text-label-2">
+                        <li><Link href="/properties" className="hover:text-label hover:underline underline-offset-2">Flats</Link></li>
+                        <li aria-hidden className="text-label-3">›</li>
+                        <li><Link href={`/properties?area_id=${areaId}`} className="hover:text-label hover:underline underline-offset-2">{property.area_name}</Link></li>
+                    </ol>
                 </nav>
+
                 {!isActive && (
-                    <div className="mb-6 p-4 border border-amber-500/40 bg-amber-500/10 text-amber-300 text-sm">
-                        This listing hasn&apos;t been seen on its source for over two weeks and is probably rented out.
-                    </div>
+                    <p role="status" className="mb-6 rounded-[var(--radius-control)] bg-warn/12 px-4 py-3 text-callout text-warn">
+                        This listing hasn&apos;t been seen on its source for over two weeks, so it&apos;s probably rented out.
+                    </p>
                 )}
-            </div>
 
-            <div className="max-w-5xl w-full bg-[#111] border border-white/10 p-5 md:p-12 flex flex-col md:flex-row gap-10 md:items-start">
-                <div className="flex-1 min-w-0 w-full flex flex-col gap-10">
-                    <div>
-                        <div className="flex flex-wrap items-center gap-3 mb-6">
-                            <span className="px-3 py-1.5 bg-black text-white border border-white/20 text-[10px] font-bold tracking-widest uppercase">{property.property_type || 'Flat'}</span>
-                            {property.source === 'scraped' ? (
-                                <span className="px-3 py-1.5 bg-amber-500/20 text-amber-400 border border-amber-500/40 text-[10px] font-bold tracking-widest uppercase">External listing</span>
-                            ) : (
-                                <span className="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-bold tracking-widest uppercase">Owner-listed</span>
-                            )}
-                            <span className="text-gray-400 text-[10px] font-bold tracking-widest uppercase">{property.area_name}</span>
-                            <span className="ml-auto">
-                                <ShareListing
-                                    propertyId={property.property_id}
-                                    address={property.address}
-                                    areaName={property.area_name}
-                                    propertyType={property.property_type}
-                                    rent={property.rent}
-                                    verdictText={verdictText}
-                                />
-                            </span>
+                <header className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="chip">{property.property_type || 'Flat'}</span>
+                            <span className="chip">{property.source === 'scraped' ? 'From a listing portal' : 'Listed by owner'}</span>
                         </div>
-                        <h1 className="text-3xl md:text-5xl font-black text-white leading-[1.1] tracking-tighter break-words">{property.address}</h1>
+                        <h1 className="mt-3 text-title-1 text-balance break-words">{property.address}</h1>
+                        <p className="mt-2 text-callout text-label-2">{property.area_name}, Bangalore</p>
                     </div>
+                    <ShareListing
+                        propertyId={property.property_id}
+                        address={property.address}
+                        areaName={property.area_name}
+                        propertyType={property.property_type}
+                        rent={property.rent}
+                        verdictText={verdictText}
+                    />
+                </header>
 
+                <div className="mt-8">
                     {images.length > 0 ? (
                         <div className="flex flex-col gap-2">
-                            <div className="w-full aspect-[4/3] overflow-hidden bg-[#050505] border border-white/10">
-                                <img src={images[0]} alt={`${property.property_type} in ${property.area_name}`} fetchPriority="high" decoding="async" className="w-full h-full object-cover" />
+                            <div className="aspect-[4/3] w-full overflow-hidden rounded-[var(--radius-panel)] bg-fill sm:aspect-[16/9]">
+                                <img src={images[0]} alt={photoAlt} fetchPriority="high" decoding="async" className="h-full w-full object-cover" />
                             </div>
                             {images.length > 1 && (
                                 <div className="grid grid-cols-3 gap-2">
                                     {images.slice(1, 4).map((img, idx) => (
-                                        <div key={idx} className="aspect-[4/3] overflow-hidden bg-[#050505] border border-white/10">
-                                            <img src={img} alt={`Photo ${idx + 2}`} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                                        <div key={idx} className="aspect-[4/3] overflow-hidden rounded-[var(--radius-card)] bg-fill">
+                                            <img src={img} alt={`${photoAlt}, photo ${idx + 2}`} loading="lazy" decoding="async" className="h-full w-full object-cover" />
                                         </div>
                                     ))}
                                 </div>
                             )}
                         </div>
                     ) : property.image_data ? (
-                        <div className="w-full aspect-[4/3] overflow-hidden bg-[#050505] border border-white/10">
-                            <img src={`data:image/jpeg;base64,${property.image_data}`} alt={property.address} className="w-full h-full object-cover" />
+                        <div className="aspect-[4/3] w-full overflow-hidden rounded-[var(--radius-panel)] bg-fill sm:aspect-[16/9]">
+                            <img src={`data:image/jpeg;base64,${property.image_data}`} alt={photoAlt} className="h-full w-full object-cover" />
                         </div>
                     ) : (
-                        <div className="w-full aspect-[4/3] bg-[#050505] border border-white/10 flex items-center justify-center text-gray-600 font-mono text-xs tracking-widest">NO PHOTOS</div>
-                    )}
-
-                    <dl className="grid grid-cols-2 md:grid-cols-3 gap-6 py-8 border-y border-white/10">
-                        {facts.map(([k, v]) => (
-                            <div key={k}>
-                                <dt className="text-[10px] text-gray-400 font-bold tracking-widest uppercase mb-2">{k}</dt>
-                                <dd className="text-base font-bold text-white">{v}</dd>
-                            </div>
-                        ))}
-                    </dl>
-
-                    {property.description && (
-                        <div>
-                            <h2 className="text-[10px] text-gray-400 font-bold tracking-widest uppercase mb-4">About this flat</h2>
-                            <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-line">{property.description}</p>
+                        <div className="flex aspect-[16/9] w-full items-center justify-center rounded-[var(--radius-panel)] bg-surface-2 text-footnote text-label-3 sm:aspect-[3/1]">
+                            No photos for this listing
                         </div>
                     )}
-
-                    {(Boolean(property.preferences) || (property.amenities && property.amenities.length > 0)) && (
-                        <div className="flex flex-col gap-6">
-                            {Boolean(property.preferences) && (
-                                <div>
-                                    <h2 className="text-[10px] text-gray-400 font-bold tracking-widest uppercase mb-3">Tenant preferences</h2>
-                                    <p className="inline-block px-4 py-2 bg-white/5 border border-white/10 text-xs font-bold text-white">{String(property.preferences)}</p>
-                                </div>
-                            )}
-                            {property.amenities && property.amenities.length > 0 && (
-                                <div>
-                                    <h2 className="text-[10px] text-gray-400 font-bold tracking-widest uppercase mb-3">Amenities</h2>
-                                    <ul className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                        {property.amenities.map((a: string) => (
-                                            <li key={a} className="p-3 border border-white/5 bg-[#050505] text-xs font-bold text-gray-300 uppercase tracking-wider">{a}</li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    <InteractiveMediaLinks google_maps_link={(property.google_maps_link as string) || null} />
-                    <ReportListing propertyId={property.property_id} />
                 </div>
 
-                <div className="w-full md:w-[380px] flex flex-col gap-6 flex-shrink-0">
-                    <ApplicationCard
-                        property_id={property.property_id}
-                        landlord_id={(property.landlord_id as string) || null}
-                        rent={property.rent}
-                        landlord_phone={(property.landlord_phone as string) || null}
-                        verdict={verdict}
-                        p25={stat?.p25}
-                        p75={stat?.p75}
-                        source={property.source}
-                        source_url={property.source_url}
-                    />
-                    {property.source !== 'scraped' && <TourScheduler propertyId={property.property_id} />}
-                    <CommuteAnalyzer propertyArea={property.area_name} latitude={property.latitude} longitude={property.longitude} />
-                    <AffordabilityCalculator monthlyRent={property.rent} />
-                </div>
-            </div>
+                <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
+                    <div className="flex min-w-0 flex-col gap-10">
+                        <section aria-labelledby="facts-heading">
+                            <h2 id="facts-heading" className="text-title-3 mb-4">Details</h2>
+                            <dl className="card grid grid-cols-2 gap-x-6 gap-y-5 p-5 sm:grid-cols-3 sm:p-6">
+                                {facts.map(([k, v]) => (
+                                    <div key={k} className="min-w-0">
+                                        <dt className="text-footnote text-label-2">{k}</dt>
+                                        <dd className={`mt-0.5 text-headline num ${v === 'Not specified' ? 'font-normal text-label-3' : ''}`}>{v}</dd>
+                                    </div>
+                                ))}
+                            </dl>
+                        </section>
 
-            <div className="max-w-5xl w-full mt-6 flex flex-col gap-6">
-                <NeighborhoodProfile areaId={areaId} areaName={property.area_name} stats={areaStats} paid={(paidData || []) as { property_type: string; median: number; count: number }[]} />
-                <PropertyReviews propertyId={property.property_id} initialReviews={(reviewData || []) as Review[]} />
-            </div>
+                        {property.description && (
+                            <section aria-labelledby="about-heading">
+                                <h2 id="about-heading" className="text-title-3 mb-3">About this flat</h2>
+                                <p className="max-w-2xl whitespace-pre-line text-label-2">{property.description}</p>
+                            </section>
+                        )}
 
-            {similar.length > 0 && (
-                <div className="max-w-5xl w-full mt-20">
-                    <h2 className="text-sm font-bold text-[#FF385C] uppercase tracking-widest mb-8">
-                        Cheapest similar {property.property_type} in {property.area_name}
-                    </h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {similar.map(p => <PropertyCard key={p.property_id} property={p} marketStat={stat} />)}
+                        {Boolean(property.preferences) && (
+                            <section aria-labelledby="prefs-heading">
+                                <h2 id="prefs-heading" className="text-title-3 mb-3">Who the owner prefers</h2>
+                                <p className="chip text-footnote">{String(property.preferences)}</p>
+                            </section>
+                        )}
+
+                        {property.amenities && property.amenities.length > 0 && (
+                            <section aria-labelledby="amenities-heading">
+                                <h2 id="amenities-heading" className="text-title-3 mb-3">Amenities</h2>
+                                <ul className="flex flex-wrap gap-2">
+                                    {property.amenities.map((a: string) => (
+                                        <li key={a} className="chip px-3 py-1 text-footnote font-normal">{a}</li>
+                                    ))}
+                                </ul>
+                            </section>
+                        )}
+
+                        <InteractiveMediaLinks google_maps_link={(property.google_maps_link as string) || null} />
+                        <ReportListing propertyId={property.property_id} />
                     </div>
+
+                    <aside className="flex w-full flex-col gap-5" aria-label="Rent and contact">
+                        <ApplicationCard
+                            property_id={property.property_id}
+                            landlord_id={(property.landlord_id as string) || null}
+                            rent={property.rent}
+                            landlord_phone={(property.landlord_phone as string) || null}
+                            verdict={verdict}
+                            p25={stat?.p25}
+                            p75={stat?.p75}
+                            source={property.source}
+                            source_url={property.source_url}
+                        />
+                        {property.source !== 'scraped' && <TourScheduler propertyId={property.property_id} landlordId={(property.landlord_id as string) || null} address={property.address} />}
+                        <CommuteAnalyzer propertyArea={property.area_name} latitude={property.latitude} longitude={property.longitude} />
+                        <AffordabilityCalculator monthlyRent={property.rent} />
+                    </aside>
                 </div>
-            )}
+
+                <div className="mt-16 flex flex-col gap-5">
+                    <NeighborhoodProfile areaId={areaId} areaName={property.area_name} stats={areaStats} paid={(paidData || []) as { property_type: string; median: number; count: number }[]} />
+                    <PropertyReviews propertyId={property.property_id} initialReviews={(reviewData || []) as Review[]} />
+                </div>
+
+                {similar.length > 0 && (
+                    <section className="mt-16 sm:mt-20" aria-labelledby="similar-heading">
+                        <h2 id="similar-heading" className="text-title-2 text-balance mb-6">
+                            More {property.property_type} flats in {property.area_name}, lowest rent first
+                        </h2>
+                        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                            {similar.map(p => <PropertyCard key={p.property_id} property={p} marketStat={stat} />)}
+                        </div>
+                    </section>
+                )}
+            </Container>
         </div>
     );
 }

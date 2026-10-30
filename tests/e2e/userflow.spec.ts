@@ -34,11 +34,11 @@ test.describe('RentWise Userflow Tests', () => {
     test('Properties page loads and handles empty states', async ({ page }) => {
         await page.goto('/properties');
 
-        const header = page.getByText(/Live inventory/i);
+        const header = page.getByRole('heading', { level: 1, name: /Flats for rent in Bangalore/i });
         await expect(header).toBeVisible();
 
-        // Either we see properties or "Zero Matches Found"
-        const emptyState = page.getByText(/Zero Matches Found/i);
+        // Either we see properties or the empty state
+        const emptyState = page.getByText(/No flats match these filters/i);
         const firstProperty = page.locator('.property-card').first();
 
         const hasEmptyState = await emptyState.isVisible();
@@ -61,10 +61,10 @@ test.describe('RentWise Userflow Tests', () => {
 
     test('Authentication layout renders properly', async ({ page }) => {
         await page.goto('/login');
-        await expect(page.getByText(/Authenticate Session/i)).toBeVisible();
+        await expect(page.getByRole('heading', { name: /Sign in to RentWise/i })).toBeVisible();
 
         await page.goto('/register');
-        await expect(page.getByText(/Initialize Registry/i)).toBeVisible();
+        await expect(page.getByRole('heading', { name: /Create your account/i })).toBeVisible();
     });
 
     test('Role-specific auth pages render', async ({ page }) => {
