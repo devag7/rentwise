@@ -54,88 +54,88 @@ export default function WatchArea({ areas }: { areas: Area[] }) {
 
     if (done) {
         return (
-            <div className="mt-16 bg-[#111] border border-[#00A699]/30 p-8 text-center">
-                <p className="text-[10px] font-mono font-bold text-[#00A699] uppercase tracking-widest mb-2">Watch active</p>
-                <p className="text-gray-400 text-sm font-light">
-                    We will email you when matching flats appear in your area. One email a day, max.
+            <div className="card mt-16 p-8 text-center" role="status">
+                <p className="text-title-3">You&apos;re watching this area.</p>
+                <p className="mt-2 text-label-2">
+                    We&apos;ll email you when matching flats appear. One email a day at most.
                 </p>
             </div>
         );
     }
 
     return (
-        <div className="mt-16 bg-[#111] border border-white/10 p-8 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-40 h-40 bg-[#00A699]/5 blur-[60px] pointer-events-none rounded-full" />
-            <div className="mb-6">
-                <h3 className="text-sm font-bold text-[#00A699] uppercase tracking-widest mb-2 flex items-center gap-3">
-                    <span className="w-2 h-2 bg-[#00A699] rounded-full animate-pulse"></span>
-                    Watch an area
-                </h3>
-                <p className="text-gray-400 text-sm font-light max-w-xl">
-                    No account needed. Tell us where you&apos;re looking and we&apos;ll email you when
-                    matching flats appear — one email a day, max.
-                </p>
-            </div>
+        <div className="card mt-16 p-6 sm:p-8">
+            <h3 className="text-title-3">Watch an area</h3>
+            <p className="mt-2 max-w-xl text-callout text-label-2">
+                No account needed. Tell us where you&apos;re looking and we&apos;ll email you when
+                matching flats appear — one email a day at most.
+            </p>
 
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end relative z-10">
-                <div className="flex flex-col md:col-span-2">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Email</label>
+            <form onSubmit={handleSubmit} className="mt-6 grid grid-cols-1 items-end gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                <div className="sm:col-span-2">
+                    <label htmlFor="wa-email" className="field-label">Email</label>
                     <input
+                        id="wa-email"
                         type="email"
                         required
+                        autoComplete="email"
                         value={email}
                         onChange={e => setEmail(e.target.value)}
                         placeholder="you@example.com"
-                        className="px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors placeholder-gray-700 font-mono text-sm"
+                        className="field"
                     />
                 </div>
-                <div className="flex flex-col">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Area</label>
+                <div>
+                    <label htmlFor="wa-area" className="field-label">Area</label>
                     <select
+                        id="wa-area"
                         required
                         value={areaId}
                         onChange={e => setAreaId(e.target.value)}
-                        className="px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors font-mono text-sm appearance-none cursor-pointer"
+                        className="field"
                     >
-                        <option value="" className="bg-[#111]">Select</option>
+                        <option value="">Choose an area</option>
                         {areas.map(a => (
-                            <option key={a.area_id} value={a.area_id} className="bg-[#111]">{a.name}</option>
+                            <option key={a.area_id} value={a.area_id}>{a.name}</option>
                         ))}
                     </select>
                 </div>
-                <div className="flex flex-col">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Max rent (optional)</label>
+                <div>
+                    <label htmlFor="wa-max" className="field-label">Max rent (₹, optional)</label>
                     <input
+                        id="wa-max"
                         type="number"
+                        inputMode="numeric"
                         value={maxRent}
                         onChange={e => setMaxRent(e.target.value)}
-                        placeholder="₹"
-                        className="px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors placeholder-gray-700 font-mono text-sm"
+                        placeholder="Any"
+                        className="field num"
                     />
                 </div>
-                <div className="flex flex-col">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">BHK (optional)</label>
+                <div>
+                    <label htmlFor="wa-bhk" className="field-label">BHK (optional)</label>
                     <select
+                        id="wa-bhk"
                         value={bhk}
                         onChange={e => setBhk(e.target.value)}
-                        className="px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors font-mono text-sm appearance-none cursor-pointer"
+                        className="field"
                     >
-                        <option value="" className="bg-[#111]">Any</option>
-                        <option value="1BHK" className="bg-[#111]">1BHK</option>
-                        <option value="2BHK" className="bg-[#111]">2BHK</option>
-                        <option value="3BHK" className="bg-[#111]">3BHK</option>
+                        <option value="">Any</option>
+                        <option value="1BHK">1BHK</option>
+                        <option value="2BHK">2BHK</option>
+                        <option value="3BHK">3BHK</option>
                     </select>
                 </div>
                 <button
                     type="submit"
                     disabled={submitting}
-                    className="md:col-span-5 lg:col-span-1 lg:col-start-5 mt-2 py-3 px-6 bg-[#00A699] text-white font-bold text-xs uppercase tracking-widest hover:bg-white hover:text-black transition-colors disabled:opacity-50"
+                    className="btn btn-secondary sm:col-span-2 lg:col-span-5 lg:justify-self-start"
                 >
-                    {submitting ? 'Saving…' : 'Watch area'}
+                    {submitting ? 'Saving…' : 'Watch this area'}
                 </button>
             </form>
-            <p className="mt-4 text-[10px] font-mono text-gray-600 uppercase tracking-widest">
-                Private — never shown publicly. Every alert has a one-click unsubscribe link.
+            <p className="mt-4 text-footnote text-label-2">
+                Your email is private and never shown. Every alert has a one-click unsubscribe link.
             </p>
         </div>
     );

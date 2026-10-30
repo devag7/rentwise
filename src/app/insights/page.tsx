@@ -3,6 +3,7 @@ import { createPublicClient } from '@/utils/supabase/public';
 import { getMarketStats, marketKey, BHK_TYPES, formatINR, areaSlug, getActiveListingCount } from '@/utils/market';
 import { getAreas } from '@/utils/listings';
 import PaidRentForm from '@/components/PaidRentForm';
+import Container from '@/components/ui/Container';
 
 export const metadata = {
     title: 'Bangalore Rent Index — median rent by area & BHK',
@@ -56,54 +57,53 @@ export default async function Insights() {
     };
 
     return (
-        <div className="min-h-screen bg-[#0A0A0A] text-white pt-32 pb-24 px-4 sm:px-6 selection:bg-[#FF385C] selection:text-white">
+        <div className="pt-28 pb-24 sm:pt-32 sm:pb-32">
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-            <div className="max-w-5xl mx-auto">
-                <p className="text-sm font-bold tracking-widest text-[#00A699] uppercase mb-4">Rent Index</p>
-                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tighter text-white mb-6">
-                    What Bangalore actually rents for.
-                </h1>
-                <p className="text-gray-300 text-lg font-light max-w-2xl">
-                    Median monthly asking rent by area and configuration — computed from {totalListings.toLocaleString('en-IN')} live
-                    listings across {totalMarkets} area·BHK markets, refreshed twice a day. No estimates, no broker spin.
+            <Container>
+                <p className="text-eyebrow mb-3">Rent index</p>
+                <h1 className="text-title-1 max-w-3xl text-balance">What Bangalore actually rents for.</h1>
+                <p className="mt-4 max-w-2xl text-lead text-label-2 text-balance">
+                    Median monthly asking rent by area and size, from <span className="num">{totalListings.toLocaleString('en-IN')}</span> live
+                    listings across <span className="num">{totalMarkets}</span> area and BHK markets. Refreshed twice a day. No estimates.
                 </p>
-                <p className="mt-4 text-sm text-gray-400">
-                    Free to reuse: <Link href="/data" className="text-[#00A699] hover:underline">download the data (CC BY 4.0)</Link>
+                <p className="mt-4 text-callout text-label-2">
+                    Free to reuse under CC BY 4.0. <Link href="/data" className="link link-chevron">Download the data</Link>
                 </p>
 
                 {areaRows.length === 0 ? (
-                    <div className="mt-16 bg-[#111] border border-white/10 p-12 text-center">
-                        <p className="text-gray-300">Index is warming up. Check back after the next data sync.</p>
+                    <div className="card mt-12 px-6 py-16 text-center">
+                        <p className="text-title-3">No numbers yet</p>
+                        <p className="mt-2 text-label-2">The index fills in after the next data sync. Check back in a few hours.</p>
                     </div>
                 ) : (
-                    <div className="mt-12 overflow-x-auto border border-white/10">
-                        <table className="w-full text-left border-collapse min-w-[680px]">
+                    <div className="card mt-12 overflow-x-auto">
+                        <table className="w-full min-w-[680px] border-collapse text-left">
                             <caption className="sr-only">Median monthly rent by area and BHK</caption>
                             <thead>
-                                <tr className="bg-[#111] border-b border-white/10">
-                                    <th scope="col" className="p-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Area</th>
+                                <tr className="border-b border-separator text-footnote text-label-2">
+                                    <th scope="col" className="px-5 py-3 font-medium">Area</th>
                                     {BHK_TYPES.map(b => (
-                                        <th scope="col" key={b} className="p-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">{b} median</th>
+                                        <th scope="col" key={b} className="px-5 py-3 text-right font-medium">{b} median</th>
                                     ))}
-                                    <th scope="col" className="p-4 text-[10px] font-bold text-[#00A699] uppercase tracking-widest text-right">2BHK paid*</th>
-                                    <th scope="col" className="p-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Listings</th>
+                                    <th scope="col" className="px-5 py-3 text-right font-medium">2BHK paid*</th>
+                                    <th scope="col" className="px-5 py-3 text-right font-medium">Listings</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody className="divide-y divide-separator">
                                 {areaRows.map(r => (
-                                    <tr key={r.id} className="border-b border-white/5 hover:bg-white/[0.02]">
-                                        <th scope="row" className="p-4 font-bold">
-                                            <Link href={`/bangalore/rent/${areaSlug(r.name)}`} className="text-white hover:text-[#FF385C]">{r.name}</Link>
+                                    <tr key={r.id} className="transition-colors hover:bg-fill">
+                                        <th scope="row" className="px-5 py-3.5 font-semibold">
+                                            <Link href={`/bangalore/rent/${areaSlug(r.name)}`} className="hover:text-accent">{r.name}</Link>
                                         </th>
                                         {r.cells.map((c, i) => (
-                                            <td key={i} className="p-4 text-right font-mono">
+                                            <td key={i} className="px-5 py-3.5 text-right num">
                                                 {c
-                                                    ? <span className="text-white">{formatINR(c.median)}<span className="text-gray-500 text-[10px] ml-1">·{c.count}</span></span>
-                                                    : <span className="text-gray-600">—</span>}
+                                                    ? <>{formatINR(c.median)}<span className="ml-1.5 text-caption text-label-2">{c.count}</span></>
+                                                    : <span className="text-label-3">—</span>}
                                             </td>
                                         ))}
-                                        <td className="p-4 text-right font-mono text-[#00A699]">{r.paid2 ? formatINR(r.paid2.median) : <span className="text-gray-600">—</span>}</td>
-                                        <td className="p-4 text-right font-mono text-gray-400">{r.totalComps}</td>
+                                        <td className="px-5 py-3.5 text-right num">{r.paid2 ? formatINR(r.paid2.median) : <span className="text-label-3">—</span>}</td>
+                                        <td className="px-5 py-3.5 text-right text-label-2 num">{r.totalComps}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -111,24 +111,20 @@ export default async function Insights() {
                     </div>
                 )}
 
-                <p className="mt-6 text-[10px] font-mono text-gray-400 uppercase tracking-widest leading-relaxed">
-                    Median = midpoint of active listing rents in that area + BHK · ·N = comparables · markets with fewer than 3 are hidden.
-                    * Paid = median of anonymous tenant reports, shown once 3+ exist.
+                <p className="mt-4 max-w-3xl text-footnote text-label-2">
+                    Median is the middle asking rent of active listings for that area and BHK; the small number beside it is how many listings it comes from.
+                    Markets with fewer than 3 listings are hidden. *Paid is the median of anonymous tenant reports, shown once 3 or more exist.
                 </p>
 
                 <div className="mt-16">
                     <PaidRentForm areas={areas} />
                 </div>
 
-                <div className="mt-12 flex flex-col sm:flex-row gap-4">
-                    <Link href="/check" className="inline-flex justify-center items-center px-8 py-4 text-sm font-bold tracking-widest uppercase bg-[#00A699] text-white hover:bg-white hover:text-black transition-colors">
-                        Check a specific rent
-                    </Link>
-                    <Link href="/properties?verdict=under" className="inline-flex justify-center items-center px-8 py-4 text-sm font-bold tracking-widest uppercase border border-white/20 text-white hover:border-white transition-colors">
-                        Under-market listings
-                    </Link>
+                <div className="mt-12 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-6">
+                    <Link href="/check" className="btn btn-primary">Check a specific rent</Link>
+                    <Link href="/properties?verdict=under" className="link link-chevron">Flats under market</Link>
                 </div>
-            </div>
+            </Container>
         </div>
     );
 }
