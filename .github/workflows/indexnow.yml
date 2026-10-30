@@ -1,0 +1,40 @@
+name: IndexNow
+
+# Tells Bing (and through it DuckDuckGo / ChatGPT search, plus Yandex, Naver,
+# Seznam) about every URL in the sitemap, so new area pages and listings get
+# crawled within hours instead of weeks. Google does not use IndexNow.
+# The key is public by design; it is served at /<key>.txt from public/.
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '41 2 * * *' # 08:11 IST, after the morning syncs
+  workflow_dispatch:
+
+env:
+  SITE: https://rentwise.devshipit.com
+  INDEXNOW_KEY: 7d50f234b8dc3f95666eef5be569f135
+
+jobs:
+  submit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Wait for the key file to be live
+        run: |
+          for i in $(seq 1 30); do
+            [ "$(curl -fsS "$SITE/$INDEXNOW_KEY.txt" || true)" = "$INDEXNOW_KEY" ] && exit 0
+            sleep 10
+          done
+          echo "::error::$SITE/$INDEXNOW_KEY.txt not serving the key"; exit 1
+      - name: Submit sitemap URLs
+        run: |
+          curl -fsS "$SITE/sitemap.xml" | grep -o '<loc>[^<]*</loc>' | sed -e 's/<loc>//' -e 's#</loc>##' > urls.txt
+          echo "$(wc -l < urls.txt) URLs"
+          jq -Rn --arg host "${SITE#https://}" --arg key "$INDEXNOW_KEY" --arg loc "$SITE/$INDEXNOW_KEY.txt" \
+            '{host: $host, key: $key, keyLocation: $loc, urlList: [inputs | select(length > 0)][:10000]}' < urls.txt > body.json
+          code=$(curl -sS -o resp.txt -w '%{http_code}' -X POST https://api.indexnow.org/indexnow \
+            -H 'Content-Type: application/json; charset=utf-8' --data @body.json)
+          echo "IndexNow HTTP $code"; cat resp.txt
+          # 200 OK / 202 Accepted; anything else is a real problem (bad key, 422 host mismatch, 429 throttled)
+          [ "$code" = "200" ] || [ "$code" = "202" ]
