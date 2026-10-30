@@ -58,7 +58,7 @@ export default function LandlordApplications({ landlord_id }: { landlord_id: str
     }, [landlord_id, supabase]);
 
     const handleUpdateStatus = async (appId: number, status: 'approved' | 'rejected') => {
-        const loadingToast = toast.loading('Executing status update...');
+        const loadingToast = toast.loading('Updating application…');
         const { error } = await supabase
             .from('applications')
             .update({ status })
@@ -67,13 +67,13 @@ export default function LandlordApplications({ landlord_id }: { landlord_id: str
         if (error) {
             toast.error(error.message, { id: loadingToast });
         } else {
-            toast.success(`Application ${status.toUpperCase()} successfully`, { id: loadingToast });
+            toast.success(status === 'approved' ? 'Application approved.' : 'Application declined.', { id: loadingToast });
             setApplications(apps => apps.map(a => a.application_id === appId ? { ...a, status } : a));
         }
     };
 
     if (isLoading) {
-        return <div className="animate-pulse h-32 bg-[#111] border border-white/10 w-full mt-6"></div>;
+        return <div className="card h-32 animate-pulse" aria-busy="true" aria-label="Loading applications" />;
     }
 
     if (applications.length === 0) {
@@ -81,83 +81,83 @@ export default function LandlordApplications({ landlord_id }: { landlord_id: str
     }
 
     return (
-        <div className="w-full mx-auto bg-[#111] border border-white/10 rounded-none p-6 mt-6">
-            <h3 className="text-sm font-bold text-[#00A699] uppercase tracking-widest mb-6 flex items-center gap-3">
-                <span className="w-2 h-2 bg-[#00A699] rounded-full animate-pulse"></span>
-                Application Review Vault
-            </h3>
+        <section aria-labelledby="applications-heading">
+            <h2 id="applications-heading" className="text-title-3">
+                Applications <span className="ml-1 font-normal text-label-2 num">{applications.length}</span>
+            </h2>
 
-            <div className="grid grid-cols-1 gap-4">
+            <ul className="card mt-5 divide-y divide-separator overflow-hidden">
                 {applications.map((app) => (
-                    <div key={app.application_id} className="border border-white/10 bg-[#050505] p-5 flex flex-col md:flex-row justify-between gap-4">
-
-                        {/* Context Info */}
-                        <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                                <span className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white ${app.status === 'pending' ? 'bg-yellow-600' :
-                                    app.status === 'approved' ? 'bg-[#00A699]' : 'bg-[#FF385C]'
-                                    }`}>
-                                    {app.status}
-                                </span>
-                                <span className="text-xs font-mono text-gray-500 uppercase tracking-widest">
-                                    {new Date(app.created_at).toLocaleDateString()}
+                    <li key={app.application_id} className="flex flex-col gap-4 px-5 py-5 sm:px-6 md:flex-row md:items-center md:justify-between">
+                        <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <StatusChip status={app.status} />
+                                <span className="text-footnote text-label-2 num">
+                                    Applied {new Date(app.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                                 </span>
                             </div>
 
-                            <h4 className="text-white font-bold text-lg leading-tight mb-2">
-                                {app.properties?.address}
-                            </h4>
+                            <h3 className="mt-2 text-headline">{app.properties?.address}</h3>
 
-                            <p className="text-gray-400 text-sm font-medium italic mb-3">&ldquo;{app.intent_description}&rdquo;</p>
+                            {app.intent_description && (
+                                <p className="mt-1 max-w-2xl text-callout text-label-2">&ldquo;{app.intent_description}&rdquo;</p>
+                            )}
 
-                            <div className="flex gap-6 text-[10px] font-mono text-gray-500 uppercase tracking-widest font-bold">
-                                <span>Move In: {new Date(app.move_in_date).toLocaleDateString()}</span>
+                            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-footnote text-label-2">
+                                <span className="num">Moves in {new Date(app.move_in_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                                 {app.kyc_document_url && (
-                                    <button onClick={() => openKyc(app.kyc_document_url!)} className="text-[#00A699] hover:underline uppercase tracking-widest font-bold">
-                                        Open ID document
+                                    <button type="button" onClick={() => openKyc(app.kyc_document_url!)} className="link">
+                                        View ID document
                                     </button>
                                 )}
                             </div>
                         </div>
 
-                        {/* Actions */}
                         {app.status === 'pending' && (
-                            <div className="flex flex-col gap-2 shrink-0 md:w-32 justify-center">
+                            <div className="flex shrink-0 gap-2">
                                 <button
+                                    type="button"
                                     onClick={() => handleUpdateStatus(app.application_id, 'approved')}
-                                    className="px-4 py-2 bg-white/5 border border-[#00A699]/30 text-[#00A699] hover:bg-[#00A699] hover:text-white transition-colors text-[10px] uppercase font-bold tracking-widest"
+                                    className="btn btn-secondary btn-sm"
                                 >
                                     Approve
                                 </button>
                                 <button
+                                    type="button"
                                     onClick={() => handleUpdateStatus(app.application_id, 'rejected')}
-                                    className="px-4 py-2 bg-white/5 border border-[#FF385C]/30 text-[#FF385C] hover:bg-[#FF385C] hover:text-white transition-colors text-[10px] uppercase font-bold tracking-widest"
+                                    className="btn btn-secondary btn-sm text-bad"
                                 >
-                                    Reject
+                                    Decline
                                 </button>
                             </div>
                         )}
 
                         {app.status === 'approved' && app.properties && (
-                            <div className="flex flex-col shrink-0 md:w-40 justify-center">
-                                <button
-                                    onClick={() => generateLeaseDocument({
-                                        propertyAddress: app.properties!.address,
-                                        rent: app.properties!.rent,
-                                        tenantId: app.tenant_id,
-                                        landlordId: landlord_id,
-                                        moveInDate: app.move_in_date
-                                    })}
-                                    className="w-full px-4 py-3 bg-[#00A699]/10 text-[#00A699] border border-[#00A699]/30 hover:bg-[#00A699] hover:text-white transition-colors text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                                    Issue Lease PDF
-                                </button>
-                            </div>
+                            <button
+                                type="button"
+                                onClick={() => generateLeaseDocument({
+                                    propertyAddress: app.properties!.address,
+                                    rent: app.properties!.rent,
+                                    tenantId: app.tenant_id,
+                                    landlordId: landlord_id,
+                                    moveInDate: app.move_in_date
+                                })}
+                                className="btn btn-secondary btn-sm shrink-0 self-start md:self-auto"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden><path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                Download lease (PDF)
+                            </button>
                         )}
-                    </div>
+                    </li>
                 ))}
-            </div>
-        </div>
+            </ul>
+        </section>
     );
+}
+
+function StatusChip({ status }: { status: string }) {
+    if (status === 'approved') return <span className="chip bg-good/12 text-good">Approved</span>;
+    if (status === 'rejected') return <span className="chip bg-bad/12 text-bad">Declined</span>;
+    if (status === 'pending') return <span className="chip bg-warn/12 text-warn">Pending</span>;
+    return <span className="chip">{status}</span>;
 }

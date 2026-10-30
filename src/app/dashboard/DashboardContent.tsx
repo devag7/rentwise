@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
 import PropertyCard, { Property } from '@/components/PropertyCard';
 import LandlordApplications from '@/components/dashboard/LandlordApplications';
 import TenantApplications from '@/components/dashboard/TenantApplications';
+import Container from '@/components/ui/Container';
 import toast from 'react-hot-toast';
 import { track } from '@/utils/analytics';
 
@@ -40,6 +42,7 @@ export default function DashboardContent() {
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [tab, setTab] = useState<'overview' | 'new'>('overview');
 
     const fetchMyProperties = useCallback(async (id: string) => {
         setIsFetchingProperties(true);
@@ -147,12 +150,12 @@ export default function DashboardContent() {
         const file = e.target.files?.[0];
         if (file) {
             if (file.size > 5 * 1024 * 1024) {
-                toast.error('Image must be under 5MB');
+                toast.error('That photo is over 5 MB. Choose a smaller one.');
                 e.target.value = '';
                 return;
             }
             if (!file.type.match(/image\/(jpeg|jpg|png)/)) {
-                toast.error('Only JPG/PNG images are allowed');
+                toast.error('Use a JPG or PNG photo.');
                 e.target.value = '';
                 return;
             }
@@ -172,7 +175,7 @@ export default function DashboardContent() {
         if (!userId) return;
 
         setIsLoading(true);
-        const loadingToast = toast.loading('Publishing Listing...');
+        const loadingToast = toast.loading('Publishing listing…');
 
         try {
             // Photos go to Supabase Storage (public CDN URL), not base64 in the row.
@@ -210,7 +213,7 @@ export default function DashboardContent() {
             if (error) throw error;
 
             track('listing_created', { area_id: parseInt(formData.area_id), property_type: formData.property_type });
-            toast.success('Property added successfully.', { id: loadingToast });
+            toast.success('Listing published.', { id: loadingToast });
 
             setFormData({
                 area_id: '',
@@ -241,7 +244,7 @@ export default function DashboardContent() {
     };
 
     const handleDelete = async (property_id: number) => {
-        if (!confirm('Confirm deletion of this property listing.')) return;
+        if (!confirm('Delete this listing? This can’t be undone.')) return;
 
         try {
             const { error } = await supabase
@@ -251,7 +254,7 @@ export default function DashboardContent() {
 
             if (error) throw error;
 
-            toast.success('Property deleted.');
+            toast.success('Listing deleted.');
             if (userId) fetchMyProperties(userId);
         } catch (err: unknown) {
             toast.error(((err as Error).message || 'Something went wrong'));
@@ -260,323 +263,279 @@ export default function DashboardContent() {
 
     if (!userId || !userRole) return null;
 
+    const isLandlord = userRole === 'landlord';
+    const listed = isLandlord ? myProperties : savedProperties;
+
     return (
-        <div className="min-h-screen bg-[#0A0A0A] text-white pt-28 pb-20 px-4 md:px-6 transition-colors duration-300 selection:bg-[#00A699] selection:text-white">
-            <div className="max-w-6xl mx-auto space-y-12">
+        <div className="min-h-dvh bg-surface-2 pb-24 pt-28 sm:pt-32">
+            <Container>
+                <header className="flex flex-wrap items-end justify-between gap-6">
+                    <div>
+                        <h1 className="text-title-1">{isLandlord ? 'Your listings' : 'Your flats'}</h1>
+                        <p className="mt-2 text-lead text-label-2">
+                            {isLandlord
+                                ? 'See who’s interested and review applications.'
+                                : 'Applications you’ve sent and flats you’ve saved.'}
+                        </p>
+                    </div>
 
-                {/* Conditionally Render Landlord Form Layer */}
-                {userRole === 'landlord' && (
-                    <div className="space-y-6">
-                        {/* Analytics Engine Dashboard */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div className="bg-[#111] border border-white/10 p-6 flex flex-col justify-center items-center relative overflow-hidden group">
-                                <div className="absolute top-0 right-0 w-16 h-16 bg-[#00A699]/10 blur-[30px] rounded-full group-hover:scale-150 transition-transform"></div>
-                                <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-2">Active Properties</span>
-                                <span className="text-4xl font-black text-white">{myProperties.length}</span>
-                            </div>
-                            <div className="bg-[#111] border border-white/10 p-6 flex flex-col justify-center items-center relative overflow-hidden group">
-                                <div className="absolute top-0 right-0 w-16 h-16 bg-[#FF385C]/10 blur-[30px] rounded-full group-hover:scale-150 transition-transform"></div>
-                                <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-2">Total Bookmark Saves</span>
-                                <span className="text-4xl font-black text-[#FF385C]">{totalFavorites}</span>
-                            </div>
-                            <div className="bg-[#111] border border-white/10 p-6 flex flex-col justify-center items-center relative overflow-hidden group">
-                                <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 blur-[30px] rounded-full group-hover:scale-150 transition-transform"></div>
-                                <span className="text-[10px] text-[00A699] font-bold uppercase tracking-widest mb-2 text-[#00A699]">Active App Leads</span>
-                                <span className="text-4xl font-black text-[#00A699]">{totalLeads}</span>
-                            </div>
+                    {isLandlord && (
+                        <div role="tablist" aria-label="Dashboard view" className="inline-flex rounded-full bg-fill p-1">
+                            {([['overview', 'Overview'], ['new', 'Add a listing']] as const).map(([key, label]) => (
+                                <button
+                                    key={key}
+                                    type="button"
+                                    role="tab"
+                                    id={`tab-${key}`}
+                                    aria-selected={tab === key}
+                                    aria-controls={`panel-${key}`}
+                                    onClick={() => setTab(key)}
+                                    className={`rounded-full px-3 py-1.5 text-footnote transition-colors ${tab === key ? 'bg-surface-3 font-semibold text-label shadow-card' : 'text-label-2 hover:text-label'}`}
+                                >
+                                    {label}
+                                </button>
+                            ))}
                         </div>
+                    )}
+                </header>
 
-                        <div className="w-full max-w-3xl mx-auto bg-[#111] border border-white/10 rounded-none p-6 md:p-10 relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-[#FF385C]/10 blur-[50px] pointer-events-none rounded-full" />
-                            <div className="absolute bottom-0 left-0 w-32 h-32 bg-[#00A699]/10 blur-[50px] pointer-events-none rounded-full" />
+                {/* Landlord: new listing form (kept mounted so a half-filled form survives tab switches) */}
+                {isLandlord && (
+                    <section id="panel-new" role="tabpanel" aria-labelledby="tab-new" hidden={tab !== 'new'} className="mt-10">
+                        <div className="card mx-auto max-w-3xl p-6 sm:p-10">
+                            <h2 className="text-title-2">List your flat</h2>
+                            <p className="mt-2 text-callout text-label-2">
+                                Takes about three minutes. No brokerage. Once it&apos;s live, we compare your rent with similar flats nearby.
+                            </p>
 
-                            <h2 className="text-2xl font-bold text-white mb-2 flex items-center gap-3">
-                                <span className="w-2 h-2 bg-[#FF385C] rounded-full animate-pulse"></span>
-                                <span className="uppercase tracking-widest text-[#FF385C]">List your property</span>
-                            </h2>
-                            <p className="text-gray-500 font-mono text-xs uppercase tracking-widest mb-8 border-b border-white/10 pb-4">Three minutes. Zero brokerage. Priced against live market comps the moment it goes live.</p>
-
-                            <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="flex flex-col relative">
-                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Area</label>
-                                        <select
-                                            name="area_id"
-                                            value={formData.area_id}
-                                            onChange={handleChange}
-                                            className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors font-mono text-sm cursor-pointer appearance-none"
-                                            required
-                                        >
-                                            <option value="" className="bg-[#111]">Select area</option>
-                                            {areas.map(area => (
-                                                <option key={area.area_id} value={area.area_id} className="bg-[#111]">{area.area_name}</option>
-                                            ))}
-                                        </select>
-                                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500 top-6">
-                                            <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
+                            <form onSubmit={handleSubmit} className="mt-8 space-y-8">
+                                <fieldset className="space-y-5">
+                                    <legend className="mb-4 text-headline">The flat</legend>
+                                    <div className="grid gap-5 sm:grid-cols-2">
+                                        <div>
+                                            <label htmlFor="area_id" className="field-label">Area</label>
+                                            <div className="relative">
+                                                <select id="area_id" name="area_id" value={formData.area_id} onChange={handleChange} className="field cursor-pointer appearance-none pr-10" required>
+                                                    <option value="">Choose an area</option>
+                                                    {areas.map(area => (
+                                                        <option key={area.area_id} value={area.area_id}>{area.area_name}</option>
+                                                    ))}
+                                                </select>
+                                                <SelectChevron />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label htmlFor="property_type" className="field-label">Type</label>
+                                            <div className="relative">
+                                                <select id="property_type" name="property_type" value={formData.property_type} onChange={handleChange} className="field cursor-pointer appearance-none pr-10" required>
+                                                    <option value="1BHK">1 bedroom (1BHK)</option>
+                                                    <option value="2BHK">2 bedrooms (2BHK)</option>
+                                                    <option value="3BHK">3 bedrooms (3BHK)</option>
+                                                    <option value="1RK">Studio (1RK)</option>
+                                                    <option value="PG">Shared room (PG)</option>
+                                                </select>
+                                                <SelectChevron />
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <div className="flex flex-col relative">
-                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Configuration</label>
-                                        <select
-                                            name="property_type"
-                                            value={formData.property_type}
-                                            onChange={handleChange}
-                                            className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors font-mono text-sm cursor-pointer appearance-none"
-                                            required
-                                        >
-                                            <option value="1BHK" className="bg-[#111]">1 Bedroom (1BHK)</option>
-                                            <option value="2BHK" className="bg-[#111]">2 Bedroom (2BHK)</option>
-                                            <option value="3BHK" className="bg-[#111]">3 Bedroom (3BHK)</option>
-                                            <option value="1RK" className="bg-[#111]">Studio (1RK)</option>
-                                            <option value="PG" className="bg-[#111]">Shared Space (PG)</option>
-                                        </select>
-                                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500 top-6">
-                                            <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
+                                    <div>
+                                        <label htmlFor="address" className="field-label">Address</label>
+                                        <input id="address" name="address" value={formData.address} onChange={handleChange} placeholder="Building, street, landmark" className="field" autoComplete="street-address" required />
+                                    </div>
+
+                                    <div className="grid gap-5 sm:grid-cols-3">
+                                        <div>
+                                            <label htmlFor="size" className="field-label">Size (sq ft)</label>
+                                            <input id="size" name="size" type="number" inputMode="numeric" value={formData.size} onChange={handleChange} className="field num" required />
+                                        </div>
+                                        <div>
+                                            <label htmlFor="bathrooms" className="field-label">Bathrooms <span className="font-normal text-label-3">(optional)</span></label>
+                                            <input id="bathrooms" name="bathrooms" type="number" inputMode="numeric" min="1" max="9" value={formData.bathrooms} onChange={handleChange} className="field num" />
+                                        </div>
+                                        <div>
+                                            <label htmlFor="furnishing_status" className="field-label">Furnishing</label>
+                                            <div className="relative">
+                                                <select id="furnishing_status" name="furnishing_status" value={formData.furnishing_status} onChange={handleChange} className="field cursor-pointer appearance-none pr-10">
+                                                    <option value="">Not specified</option>
+                                                    <option value="Furnished">Furnished</option>
+                                                    <option value="Semi-Furnished">Semi-furnished</option>
+                                                    <option value="Unfurnished">Unfurnished</option>
+                                                </select>
+                                                <SelectChevron />
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
+                                </fieldset>
 
-                                <div className="flex flex-col">
-                                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Address</label>
-                                    <input
-                                        name="address"
-                                        value={formData.address}
-                                        onChange={handleChange}
-                                        placeholder="Building, street, landmark..."
-                                        className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors placeholder-gray-700 font-mono text-sm"
-                                        required
-                                    />
-                                </div>
+                                <fieldset className="space-y-5 border-t border-separator pt-8">
+                                    <legend className="sr-only">Rent and terms</legend>
+                                    <p aria-hidden className="text-headline">Rent and terms</p>
+                                    <div className="grid gap-5 sm:grid-cols-3">
+                                        <div>
+                                            <label htmlFor="rent" className="field-label">Monthly rent (₹)</label>
+                                            <input id="rent" name="rent" type="number" inputMode="numeric" value={formData.rent} onChange={handleChange} className="field num" required />
+                                        </div>
+                                        <div>
+                                            <label htmlFor="deposit" className="field-label">Deposit (₹) <span className="font-normal text-label-3">(optional)</span></label>
+                                            <input id="deposit" name="deposit" type="number" inputMode="numeric" value={formData.deposit} onChange={handleChange} className="field num" />
+                                        </div>
+                                        <div>
+                                            <label htmlFor="parking" className="field-label">Parking</label>
+                                            <div className="relative">
+                                                <select id="parking" name="parking" value={formData.parking} onChange={handleChange} className="field cursor-pointer appearance-none pr-10">
+                                                    <option value="">Not specified</option>
+                                                    <option value="yes">Yes</option>
+                                                    <option value="no">No</option>
+                                                </select>
+                                                <SelectChevron />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label htmlFor="preferences" className="field-label">Tenant preferences <span className="font-normal text-label-3">(optional)</span></label>
+                                        <input id="preferences" name="preferences" value={formData.preferences} onChange={handleChange} placeholder="For example: family preferred, pets OK" className="field" />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="description" className="field-label">Description <span className="font-normal text-label-3">(optional)</span></label>
+                                        <input id="description" name="description" value={formData.description} onChange={handleChange} placeholder="What makes this a good place to live?" className="field" />
+                                    </div>
+                                </fieldset>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="flex flex-col">
-                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Size (sq ft)</label>
-                                        <input
-                                            name="size"
-                                            type="number"
-                                            value={formData.size}
-                                            onChange={handleChange}
-                                            placeholder="000"
-                                            className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors placeholder-gray-700 font-mono text-sm"
-                                            required
-                                        />
+                                <fieldset className="space-y-5 border-t border-separator pt-8">
+                                    <legend className="sr-only">Contact and location</legend>
+                                    <p aria-hidden className="text-headline">Contact and location</p>
+                                    <div className="grid gap-5 sm:grid-cols-2">
+                                        <div>
+                                            <label htmlFor="landlord_phone" className="field-label">Phone</label>
+                                            <input id="landlord_phone" name="landlord_phone" type="tel" autoComplete="tel" value={formData.landlord_phone} onChange={handleChange} placeholder="+91 98765 43210" className="field num" aria-describedby="phone-hint" />
+                                            <p id="phone-hint" className="mt-1.5 text-footnote text-label-2">Shared only with tenants who apply.</p>
+                                        </div>
+                                        <div>
+                                            <label htmlFor="google_maps_link" className="field-label">Google Maps link <span className="font-normal text-label-3">(optional)</span></label>
+                                            <input id="google_maps_link" name="google_maps_link" type="url" inputMode="url" value={formData.google_maps_link} onChange={handleChange} placeholder="https://maps.app.goo.gl/…" className="field" />
+                                        </div>
                                     </div>
+                                </fieldset>
 
-                                    <div className="flex flex-col">
-                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Monthly rent (₹)</label>
-                                        <input
-                                            name="rent"
-                                            type="number"
-                                            value={formData.rent}
-                                            onChange={handleChange}
-                                            placeholder="00000"
-                                            className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#FF385C] transition-colors placeholder-gray-700 font-mono text-sm"
-                                            required
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    <div className="flex flex-col">
-                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Deposit (₹, optional)</label>
-                                        <input
-                                            name="deposit"
-                                            type="number"
-                                            value={formData.deposit}
-                                            onChange={handleChange}
-                                            placeholder="e.g. 100000"
-                                            className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors placeholder-gray-700 font-mono text-sm"
-                                        />
-                                    </div>
-                                    <div className="flex flex-col">
-                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Bathrooms</label>
-                                        <input
-                                            name="bathrooms"
-                                            type="number"
-                                            min="1"
-                                            max="9"
-                                            value={formData.bathrooms}
-                                            onChange={handleChange}
-                                            placeholder="e.g. 2"
-                                            className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors placeholder-gray-700 font-mono text-sm"
-                                        />
-                                    </div>
-                                    <div className="flex flex-col relative">
-                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Parking</label>
-                                        <select
-                                            name="parking"
-                                            value={formData.parking}
-                                            onChange={handleChange}
-                                            className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors font-mono text-sm cursor-pointer appearance-none"
-                                        >
-                                            <option value="" className="bg-[#111]">Not specified</option>
-                                            <option value="yes" className="bg-[#111]">Yes</option>
-                                            <option value="no" className="bg-[#111]">No</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="flex flex-col relative">
-                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Furnishing</label>
-                                        <select
-                                            name="furnishing_status"
-                                            value={formData.furnishing_status}
-                                            onChange={handleChange}
-                                            className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors font-mono text-sm cursor-pointer appearance-none"
-                                        >
-                                            <option value="" className="bg-[#111]">Not specified</option>
-                                            <option value="Furnished" className="bg-[#111]">Furnished</option>
-                                            <option value="Semi-Furnished" className="bg-[#111]">Semi-Furnished</option>
-                                            <option value="Unfurnished" className="bg-[#111]">Unfurnished</option>
-                                        </select>
-                                    </div>
-                                    <div className="flex flex-col">
-                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Description (optional)</label>
-                                        <input
-                                            name="description"
-                                            value={formData.description}
-                                            onChange={handleChange}
-                                            placeholder="What makes this place good to live in?"
-                                            className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors placeholder-gray-700 font-mono text-sm"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="flex flex-col">
-                                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Tenant preferences (optional)</label>
-                                    <input
-                                        name="preferences"
-                                        value={formData.preferences}
-                                        onChange={handleChange}
-                                        placeholder="E.g., Family preferred, vegetarians only, pets OK..."
-                                        className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors placeholder-gray-700 font-mono text-sm"
-                                    />
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="flex flex-col">
-                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Phone (shared with applicants)</label>
-                                        <input
-                                            name="landlord_phone"
-                                            value={formData.landlord_phone}
-                                            onChange={handleChange}
-                                            placeholder="+91 XXXXX XXXXX"
-                                            className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors placeholder-gray-700 font-mono text-sm"
-                                        />
-                                    </div>
-                                    <div className="flex flex-col">
-                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Google Maps link (optional)</label>
-                                        <input
-                                            name="google_maps_link"
-                                            value={formData.google_maps_link}
-                                            onChange={handleChange}
-                                            placeholder="https://maps..."
-                                            className="w-full px-4 py-3 text-white bg-transparent border-b border-white/20 focus:outline-none focus:border-[#00A699] transition-colors placeholder-gray-700 font-mono text-sm"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="pt-2">
-                                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Photo (JPEG/PNG, max 5MB)</label>
-                                    <div className="flex items-center gap-4">
-                                        <label className="cursor-pointer inline-flex items-center px-4 py-3 bg-white/5 border border-white/20 hover:bg-white/10 text-white transition-colors font-mono uppercase tracking-widest text-[10px] font-bold">
-                                            Choose photo
-                                            <input type="file" accept="image/jpeg, image/png" onChange={handleImageChange} className="hidden" />
-                                        </label>
-                                        <span className="text-xs text-gray-500 font-mono">{imageFile ? imageFile.name : "No photo selected"}</span>
-                                    </div>
-
-                                    {imagePreview && (
-                                        <div className="mt-4 relative w-full max-w-sm h-48 overflow-hidden border border-white/20 rounded-none shadow-sm">
-                                            <img src={imagePreview} alt="Preview" className="w-full h-full object-cover grayscale opacity-90 contrast-125 hover:grayscale-0 transition-all duration-700" />
+                                <fieldset className="border-t border-separator pt-8">
+                                    <legend className="sr-only">Photo</legend>
+                                    <p aria-hidden className="text-headline">Photo <span className="text-callout font-normal text-label-2">(optional)</span></p>
+                                    {imagePreview ? (
+                                        <div className="relative mt-4 aspect-[4/3] w-full max-w-sm overflow-hidden rounded-[var(--radius-card)] bg-fill">
+                                            <img src={imagePreview} alt="Selected listing photo" className="h-full w-full object-cover" />
                                             <button
                                                 type="button"
                                                 onClick={() => { setImageFile(null); setImagePreview(null); }}
-                                                className="absolute top-2 right-2 p-1.5 bg-black/80 text-white hover:text-[#FF385C] border border-white/20 transition-colors"
-                                                aria-label="Remove image"
+                                                className="material absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full text-label transition-transform duration-150 ease-[var(--ease-out)] active:scale-95"
+                                                aria-label="Remove photo"
                                             >
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                                                 </svg>
                                             </button>
+                                            {imageFile && <p className="sr-only">{imageFile.name}</p>}
                                         </div>
+                                    ) : (
+                                        <label className="relative mt-4 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-[var(--radius-card)] border-2 border-dashed border-separator px-6 py-10 text-center transition-colors hover:bg-fill focus-within:border-accent">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-label-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6} aria-hidden>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5V18a2.25 2.25 0 002.25 2.25h13.5A2.25 2.25 0 0021 18v-1.5M16.5 7.5L12 3m0 0L7.5 7.5M12 3v13.5" />
+                                            </svg>
+                                            <span className="text-callout"><span className="text-accent">Choose a photo</span> or drop it here</span>
+                                            <span className="text-footnote text-label-2">JPG or PNG, up to 5 MB</span>
+                                            <input type="file" accept="image/jpeg, image/png" onChange={handleImageChange} className="absolute inset-0 cursor-pointer opacity-0" aria-label="Listing photo" />
+                                        </label>
                                     )}
-                                </div>
+                                </fieldset>
 
-                                <div className="pt-8">
-                                    <button
-                                        type="submit"
-                                        className="w-full py-4 bg-white text-black font-bold text-xs uppercase tracking-widest transition-all duration-300 hover:bg-[#FF385C] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                                        disabled={isLoading}
-                                    >
-                                        {isLoading ? <span className="animate-pulse">Publishing...</span> : "Publish listing"}
+                                <div className="border-t border-separator pt-8">
+                                    <button type="submit" className="btn btn-primary btn-lg w-full sm:w-auto" disabled={isLoading}>
+                                        {isLoading ? 'Publishing…' : 'Publish listing'}
                                     </button>
                                 </div>
                             </form>
                         </div>
-                    </div>
+                    </section>
                 )}
 
-                {/* User Properties Section */}
-                <div className="w-full mx-auto">
-                    {userRole === 'landlord' && userId && (
-                        <div className="mb-12">
-                            <LandlordApplications landlord_id={userId} />
-                        </div>
+                <div
+                    id={isLandlord ? 'panel-overview' : undefined}
+                    role={isLandlord ? 'tabpanel' : undefined}
+                    aria-labelledby={isLandlord ? 'tab-overview' : undefined}
+                    hidden={isLandlord && tab !== 'overview'}
+                    className="mt-10 space-y-14"
+                >
+                    {isLandlord && (
+                        <dl className="grid grid-cols-3 gap-3 sm:gap-5">
+                            {[
+                                { label: 'Listings', value: myProperties.length },
+                                { label: 'Times saved', value: totalFavorites },
+                                { label: 'Applications', value: totalLeads },
+                            ].map(stat => (
+                                <div key={stat.label} className="card p-4 sm:p-6">
+                                    <dt className="text-footnote text-label-2">{stat.label}</dt>
+                                    <dd className="mt-1 text-title-1 num">{stat.value}</dd>
+                                </div>
+                            ))}
+                        </dl>
                     )}
 
-                    {userRole === 'tenant' && userId && (
-                        <div className="mb-12">
-                            <TenantApplications tenant_id={userId} />
-                        </div>
-                    )}
+                    {isLandlord && userId && <LandlordApplications landlord_id={userId} />}
+                    {!isLandlord && userId && <TenantApplications tenant_id={userId} />}
 
-                    <h3 className="text-sm font-bold text-[#00A699] uppercase tracking-widest mb-6 flex items-center gap-3">
-                        <span className="w-2 h-2 bg-[#00A699] rounded-full animate-pulse"></span>
-                        {userRole === 'landlord' ? 'Active Records' : 'Saved Coordinates'}
-                    </h3>
+                    <section aria-labelledby="listed-heading">
+                        <h2 id="listed-heading" className="text-title-3">
+                            {isLandlord ? 'Listings' : 'Saved flats'}
+                            {!isFetchingProperties && listed.length > 0 && <span className="ml-2 font-normal text-label-2 num">{listed.length}</span>}
+                        </h2>
 
-                    <div className="border border-white/10 bg-[#111] p-6 rounded-none relative overflow-hidden">
                         {isFetchingProperties ? (
-                            <div className="flex justify-center p-12">
-                                <div className="animate-spin rounded-none h-8 w-8 border-t-2 border-b-2 border-white"></div>
+                            <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-label="Loading">
+                                {[0, 1, 2].map(i => <div key={i} className="card aspect-[4/5] animate-pulse" />)}
                             </div>
-                        ) : (userRole === 'landlord' && myProperties.length === 0) || (userRole === 'tenant' && savedProperties.length === 0) ? (
-                            <div className="text-center py-16">
-                                <p className="text-gray-500 font-mono text-xs uppercase tracking-widest">
-                                    {userRole === 'landlord'
-                                        ? "No active property nodes discovered within your sector."
-                                        : "You have not saved any properties yet."}
+                        ) : listed.length === 0 ? (
+                            <div className="card mt-5 px-6 py-14 text-center">
+                                <p className="text-title-3">{isLandlord ? 'No listings yet' : 'No saved flats yet'}</p>
+                                <p className="mx-auto mt-2 max-w-md text-label-2">
+                                    {isLandlord
+                                        ? 'Add your flat and we’ll show how its rent compares to similar flats nearby.'
+                                        : 'Tap the heart on any flat to keep it here.'}
                                 </p>
+                                {isLandlord ? (
+                                    <button type="button" onClick={() => setTab('new')} className="btn btn-primary mt-6">Add a listing</button>
+                                ) : (
+                                    <Link href="/properties" className="btn btn-primary mt-6">Browse flats</Link>
+                                )}
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                                {(userRole === 'landlord' ? myProperties : savedProperties).map(property => (
-                                    <div key={property.property_id} className="relative group">
+                            <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                                {listed.map(property => (
+                                    <div key={property.property_id} className="flex flex-col gap-2">
                                         <PropertyCard property={property} />
-
-                                        {userRole === 'landlord' && (
+                                        {isLandlord && (
                                             <button
+                                                type="button"
                                                 onClick={() => handleDelete(property.property_id)}
-                                                className="absolute top-4 left-4 z-20 bg-black/80 border border-white/20 hover:border-[#FF385C] hover:text-[#FF385C] text-white p-2 rounded-none shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-300"
-                                                title="Purge Record"
+                                                className="btn btn-secondary btn-sm self-start text-bad"
                                             >
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                                                </svg>
+                                                Delete listing
                                             </button>
                                         )}
                                     </div>
                                 ))}
                             </div>
                         )}
-                    </div>
+                    </section>
                 </div>
+            </Container>
+        </div>
+    );
+}
 
-            </div >
-        </div >
+function SelectChevron() {
+    return (
+        <svg aria-hidden className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-label-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
     );
 }

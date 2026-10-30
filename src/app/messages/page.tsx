@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import Container from '@/components/ui/Container';
 
 interface Message {
     message_id: number;
@@ -150,124 +152,151 @@ function MessagesContent() {
     };
 
     if (loading) {
-        return <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center pt-24"><div className="animate-spin h-12 w-12 border-t-2 border-b-2 border-[#FF385C]"></div></div>;
+        return <LoadingScreen />;
     }
 
-    return (
-        <div className="min-h-screen bg-[#0A0A0A] text-white pt-24 pb-8 px-4 md:px-6 selection:bg-[#FF385C] selection:text-white">
-            <div className="max-w-6xl mx-auto h-[80vh] flex border border-white/10 bg-[#111] overflow-hidden rounded-none shadow-2xl">
+    const activeName = activeContact
+        ? contacts.find(c => c.id === activeContact)?.name || `User ${activeContact.substring(0, 6)}`
+        : '';
 
-                {/* Contacts Sidebar */}
-                <div className={`w-full md:w-1/3 border-r border-white/10 flex flex-col ${activeContact ? 'hidden md:flex' : 'flex'}`}>
-                    <div className="p-6 border-b border-white/10 bg-[#050505]">
-                        <h2 className="text-sm font-bold tracking-widest text-[#FF385C] uppercase flex items-center gap-3">
-                            <span className="w-2 h-2 bg-[#FF385C] rounded-full animate-pulse"></span>
-                            Secure Comms Link
-                        </h2>
+    return (
+        <div className="bg-surface-2 pb-10 pt-28 sm:pt-32">
+            <Container>
+                <h1 className={`text-title-1 ${activeContact ? 'hidden md:block' : ''}`}>Messages</h1>
+
+                <div className="card mt-6 flex h-[calc(100dvh-12rem)] min-h-[28rem] overflow-hidden sm:h-[calc(100dvh-15rem)]">
+
+                    {/* Conversation list */}
+                    <div className={`w-full flex-col border-separator md:flex md:w-80 md:shrink-0 md:border-r ${activeContact ? 'hidden md:flex' : 'flex'}`}>
+                        <div className="border-b border-separator px-5 py-4">
+                            <h2 className="text-headline">Conversations</h2>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto overflow-x-hidden">
+                            {contacts.length === 0 ? (
+                                <div className="px-6 py-14 text-center">
+                                    <p className="text-title-3">No conversations yet</p>
+                                    <p className="mt-2 text-callout text-label-2">Message a landlord from any listing to start one.</p>
+                                    <Link href="/properties" className="btn btn-primary btn-sm mt-6">Browse flats</Link>
+                                </div>
+                            ) : (
+                                <ul className="divide-y divide-separator">
+                                    {contacts.map(contact => {
+                                        const selected = activeContact === contact.id;
+                                        return (
+                                            <li key={contact.id}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setActiveContact(contact.id)}
+                                                    aria-current={selected ? 'true' : undefined}
+                                                    className={`flex w-full items-center gap-3 px-5 py-3.5 text-left transition-colors ${selected ? 'bg-fill' : 'hover:bg-fill'}`}
+                                                >
+                                                    <Avatar />
+                                                    <span className="min-w-0 flex-1">
+                                                        <span className="block truncate text-headline">{contact.name}</span>
+                                                        <span className="block truncate text-footnote text-label-2">{contact.lastMessage}</span>
+                                                    </span>
+                                                </button>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            )}
+                        </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto overflow-x-hidden">
-                        {contacts.length === 0 ? (
-                            <div className="p-8 text-center text-gray-500 font-mono text-xs uppercase tracking-widest">
-                                No active communication protocols discovered.
+                    {/* Thread */}
+                    <div className={`min-w-0 flex-1 flex-col ${!activeContact ? 'hidden items-center justify-center md:flex' : 'flex'}`}>
+                        {!activeContact ? (
+                            <div className="px-6 text-center">
+                                <p className="text-title-3">Choose a conversation</p>
+                                <p className="mt-2 text-callout text-label-2">Pick someone on the left to see your messages.</p>
                             </div>
                         ) : (
-                            contacts.map(contact => (
-                                <button
-                                    key={contact.id}
-                                    onClick={() => setActiveContact(contact.id)}
-                                    className={`w-full text-left p-5 border-b border-white/5 transition-colors focus:outline-none ${activeContact === contact.id ? 'bg-white/10 border-l-[4px] border-l-[#FF385C]' : 'hover:bg-white/5 border-l-[4px] border-l-transparent'}`}
-                                >
-                                    <h4 className="font-bold text-sm tracking-tight mb-1 truncate">{contact.name}</h4>
-                                    <p className="text-gray-500 text-xs font-mono truncate">{contact.lastMessage}</p>
-                                </button>
-                            ))
-                        )}
-                    </div>
-                </div>
-
-                {/* Chat Area */}
-                <div className={`w-full md:w-2/3 flex flex-col bg-[#0A0A0A] relative ${!activeContact ? 'hidden md:flex items-center justify-center' : 'flex'}`}>
-                    {!activeContact ? (
-                        <div className="text-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-gray-800 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                            </svg>
-                            <p className="text-gray-500 font-mono text-xs uppercase tracking-widest">Select a channel to transmit.</p>
-                        </div>
-                    ) : (
-                        <>
-                            {/* Chat Header */}
-                            <div className="p-6 border-b border-white/10 bg-[#050505] flex items-center justify-between z-10">
-                                <div className="flex items-center gap-4">
-                                    <button onClick={() => setActiveContact(null)} className="md:hidden text-gray-500 pr-2">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                            <>
+                                <div className="flex items-center gap-2 border-b border-separator px-3 py-3 md:px-5">
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveContact(null)}
+                                        className="flex h-9 w-9 items-center justify-center rounded-full text-accent transition-colors hover:bg-fill md:hidden"
+                                        aria-label="Back to conversations"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
                                     </button>
-                                    <h3 className="font-bold tracking-widest uppercase text-sm">
-                                        {contacts.find(c => c.id === activeContact)?.name || `User ${activeContact.substring(0, 6)}`}
-                                    </h3>
+                                    <Avatar small />
+                                    <h2 className="truncate text-headline">{activeName}</h2>
                                 </div>
-                                <span className="text-[10px] font-mono text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                                    <span className="w-1.5 h-1.5 bg-[#00A699] rounded-full"></span>
-                                    Encrypted
-                                </span>
-                            </div>
 
-                            {/* Messages Scroll Area */}
-                            <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-transparent relative z-10" id="messages-container">
-                                {messages.length === 0 ? (
-                                    <div className="h-full flex flex-col items-center justify-center text-gray-500 font-mono text-xs uppercase tracking-widest space-y-2 opacity-50">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
-                                        <p>Link Established.</p>
-                                        <p>Begin transmission.</p>
-                                    </div>
-                                ) : (
-                                    messages.map((msg, index) => {
-                                        const isMine = msg.sender_id === userId;
-                                        return (
-                                            <div key={msg.message_id || index} className={`flex w-full animate-fade-in ${isMine ? 'justify-end' : 'justify-start'}`}>
-                                                <div className={`max-w-[80%] md:max-w-[70%] p-4 ${isMine ? 'bg-white text-black rounded-tl-xl rounded-tr-xl rounded-bl-xl rounded-br-none shadow-lg' : 'bg-[#1A1A1A] border border-white/10 text-white rounded-tl-xl rounded-tr-xl rounded-br-xl rounded-bl-none'}`}>
-                                                    <p className="text-sm font-medium leading-relaxed break-words">{msg.content}</p>
-                                                    <p className={`text-[10px] mt-2 font-mono uppercase tracking-widest text-right ${isMine ? 'text-gray-500' : 'text-gray-600'}`}>
-                                                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        )
-                                    })
-                                )}
-                            </div>
+                                <div className="flex-1 overflow-y-auto px-4 py-5 md:px-6" id="messages-container">
+                                    {messages.length === 0 ? (
+                                        <div className="flex h-full flex-col items-center justify-center text-center">
+                                            <p className="text-headline">No messages yet</p>
+                                            <p className="mt-1 text-callout text-label-2">Say hello and ask about the flat.</p>
+                                        </div>
+                                    ) : (
+                                        <ul className="space-y-1.5">
+                                            {messages.map((msg, index) => {
+                                                const isMine = msg.sender_id === userId;
+                                                return (
+                                                    <li key={msg.message_id || index} className={`flex w-full ${isMine ? 'justify-end' : 'justify-start'}`}>
+                                                        <div className={`max-w-[80%] rounded-2xl px-3.5 py-2 md:max-w-[65%] ${isMine ? 'bg-accent text-on-accent' : 'bg-fill text-label'}`}>
+                                                            <p className="whitespace-pre-wrap break-words text-callout">{msg.content}</p>
+                                                            <p className={`mt-0.5 text-right text-caption num ${isMine ? 'opacity-75' : 'text-label-2'}`}>
+                                                                {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                            </p>
+                                                        </div>
+                                                    </li>
+                                                );
+                                            })}
+                                        </ul>
+                                    )}
+                                </div>
 
-                            {/* Input Area */}
-                            <div className="p-4 border-t border-white/10 bg-[#050505] z-10 relative">
-                                <form onSubmit={handleSendMessage} className="flex gap-4">
+                                <form onSubmit={handleSendMessage} className="flex items-center gap-2 border-t border-separator p-3">
+                                    <label htmlFor="message-input" className="sr-only">Message</label>
                                     <input
+                                        id="message-input"
                                         type="text"
                                         value={newMessage}
                                         onChange={(e) => setNewMessage(e.target.value)}
-                                        placeholder="Transmit data packet..."
-                                        className="flex-1 bg-transparent border-b border-white/20 px-4 py-3 focus:outline-none focus:border-[#FF385C] text-sm font-mono transition-colors text-white placeholder-gray-700"
+                                        placeholder="Message"
+                                        autoComplete="off"
+                                        className="field flex-1 rounded-full"
                                     />
-                                    <button
-                                        type="submit"
-                                        disabled={!newMessage.trim()}
-                                        className="px-6 py-3 bg-[#FF385C] hover:bg-white hover:text-black transition-colors font-bold text-[10px] uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
+                                    <button type="submit" disabled={!newMessage.trim()} className="btn btn-primary btn-sm">
                                         Send
                                     </button>
                                 </form>
-                            </div>
-                        </>
-                    )}
+                            </>
+                        )}
+                    </div>
                 </div>
-            </div>
+            </Container>
+        </div>
+    );
+}
+
+function Avatar({ small = false }: { small?: boolean }) {
+    return (
+        <span aria-hidden className={`flex shrink-0 items-center justify-center rounded-full bg-fill-strong text-label-2 ${small ? 'h-8 w-8' : 'h-10 w-10'}`}>
+            <svg xmlns="http://www.w3.org/2000/svg" className={small ? 'h-4 w-4' : 'h-5 w-5'} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.1a7.5 7.5 0 0115 0A17.9 17.9 0 0112 21.75c-2.68 0-5.22-.58-7.5-1.65z" />
+            </svg>
+        </span>
+    );
+}
+
+function LoadingScreen() {
+    return (
+        <div className="flex min-h-dvh items-center justify-center bg-surface-2 pt-24" role="status" aria-label="Loading">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-fill-strong border-t-label-2" />
         </div>
     );
 }
 
 export default function Messages() {
     return (
-        <Suspense fallback={<div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center pt-24"><div className="animate-spin h-12 w-12 border-t-2 border-b-2 border-[#FF385C]"></div></div>}>
+        <Suspense fallback={<LoadingScreen />}>
             <MessagesContent />
         </Suspense>
     );
