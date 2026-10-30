@@ -351,17 +351,20 @@ body {
   }
 
   /* Scroll reveal: marketing sections only, plays once (see Reveal.tsx). */
-  .reveal {
-    opacity: 0;
-    transform: translateY(16px);
-    transition:
-      opacity 700ms var(--ease-out),
-      transform 700ms var(--ease-out);
-    transition-delay: var(--reveal-delay, 0ms);
-  }
-  .reveal[data-visible="true"] {
-    opacity: 1;
-    transform: none;
+  /* Hidden start only when JS can reveal it; no-JS readers see content. */
+  @media (scripting: enabled) {
+    .reveal {
+      opacity: 0;
+      transform: translateY(16px);
+      transition:
+        opacity 700ms var(--ease-out),
+        transform 700ms var(--ease-out);
+      transition-delay: var(--reveal-delay, 0ms);
+    }
+    .reveal[data-visible="true"] {
+      opacity: 1;
+      transform: none;
+    }
   }
 
   /* Entrance for small surfaces (menus, toasts) without JS */
