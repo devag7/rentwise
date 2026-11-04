@@ -11,6 +11,13 @@ test.describe('Health & infrastructure', () => {
         expect(body.status).toBe('ok');
     });
 
+    test('listing syncs are still running', async ({ request }) => {
+        const body = await (await request.get('/api/health')).json();
+        // Fails when NoBroker/MagicBricks syncs stop (e.g. a rotated Apify key).
+        expect(body.listings, 'health reports no listing freshness').toBeTruthy();
+        expect(body.listings.fresh, `newest listing last seen ${body.listings.hours_ago}h ago`).toBe(true);
+    });
+
     test('robots.txt and sitemap.xml are served', async ({ request }) => {
         const robots = await request.get('/robots.txt');
         expect(robots.ok()).toBeTruthy();
