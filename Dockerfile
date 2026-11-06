@@ -4,8 +4,8 @@ FROM node:24-alpine AS builder
 WORKDIR /app
 
 # Copy package files and install dependencies (reproducible via lockfile)
-COPY package.json package-lock.json ./
-RUN npm ci
+COPY package.json pnpm-lock.yaml ./
+RUN npm install -g pnpm@10.34.9 && pnpm install --frozen-lockfile
 
 # Copy full source and build application
 COPY . .
@@ -18,11 +18,11 @@ ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
 ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
 ENV NEXT_PUBLIC_MAPBOX_TOKEN=$NEXT_PUBLIC_MAPBOX_TOKEN
 
-RUN npm run build
+RUN pnpm run build
 
 # Drop dev-only packages so the runner stage copies a lean node_modules
 # (tsx + scraper deps live in "dependencies" and survive the prune)
-RUN npm prune --omit=dev
+RUN pnpm prune --prod
 
 # --- Stage 2: Production Image ---
 FROM node:24-alpine AS runner

@@ -47,5 +47,16 @@
     "playwright": "^1.60.0",
     "tailwindcss": "^4",
     "typescript": "6.0.3"
+  },
+  "packageManager": "pnpm@10.34.9",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp",
+      "unrs-resolver"
+    ],
+    "ignoredBuiltDependencies": [
+      "core-js"
+    ]
   }
 }

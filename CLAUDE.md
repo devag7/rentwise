@@ -5,15 +5,15 @@ Rental listings platform for Bangalore. Next.js 16 App Router on Vercel + Supaba
 ## Commands
 
 ```bash
-npm run dev          # local dev server
-npm run build        # production build (standalone output)
-npm run lint         # eslint (flat config)
-npm run typecheck    # tsc --noEmit
-npm run test:e2e     # playwright smoke suite (defaults to production URL)
-npm run scrape       # one-off Apify NoBroker sync
+pnpm run dev          # local dev server
+pnpm run build        # production build (standalone output)
+pnpm run lint         # eslint (flat config)
+pnpm run typecheck    # tsc --noEmit
+pnpm run test:e2e     # playwright smoke suite (defaults to production URL)
+pnpm run scrape       # one-off Apify NoBroker sync
 ```
 
-E2E against local build: `PLAYWRIGHT_BASE_URL=http://localhost:3000 npm run test:e2e`.
+E2E against local build: `PLAYWRIGHT_BASE_URL=http://localhost:3000 pnpm run test:e2e`.
 
 ## Architecture
 
