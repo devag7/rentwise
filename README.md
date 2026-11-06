@@ -25,16 +25,16 @@ RentWise prices every Bangalore rental listing against the **median of real comp
 ## Run locally
 
 ```bash
-npm install
+pnpm install
 cp .env.example .env.local   # fill in Supabase URL + anon key (Mapbox optional)
-npm run dev
+pnpm run dev
 ```
 
 Database: apply `db/migrations/*.sql` in order in the Supabase SQL editor. Edge Functions: see [`supabase/README.md`](supabase/README.md).
 
 ```bash
-npm run lint && npm run typecheck && npm run build
-PLAYWRIGHT_BASE_URL=http://localhost:3000 npm run test:e2e
+pnpm run lint && pnpm run typecheck && pnpm run build
+PLAYWRIGHT_BASE_URL=http://localhost:3000 pnpm run test:e2e
 ```
 
 ## Data policy
